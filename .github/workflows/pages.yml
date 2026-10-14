@@ -1,0 +1,68 @@
+name: Build and publish LIX storm data dashboard
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      refresh:
+        description: Force fresh IEM download (ignore cache)
+        type: boolean
+        default: false
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: https://mefferso.github.io/2025_stormdata_verification/
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install processing dependencies
+        run: pip install -r requirements.txt
+      - name: Cache public IEM archive
+        uses: actions/cache@v4
+        with:
+          path: .cache/iem
+          key: iem-lix-2025-v2-run-ID
+          restore-keys: |
+            iem-lix-2025-v2-
+      - name: Execute offline QC tests
+        run: python -m pytest tests -q
+      - name: Ingest public archives and build research results
+        shell: bash
+        run: |
+          REFRESH=""
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ] && [ "$(jq -r '.inputs.refresh // "false"' "$GITHUB_EVENT_PATH")" = "true" ]; then
+            REFRESH="--refresh"
+          fi
+          python -m src.build --cache .cache/iem --output site $REFRESH
+      - name: Validate actual output
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d = json.loads(Path("site/data/results.json").read_text())
+          assert d["metadata"]["year"] == 2025
+          assert d["overview"]["warnings"] > 0
+          assert d["metadata"]["lsr_records_downloaded"] > 0
+          assert d["overview"]["warnings"] == len(d["warnings"])
+          assert Path("site/data/summary.txt").is_file()
+          print("Validated real IEM results", json.dumps(d["overview"], indent=2))
+          PY
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./site
+      - name: Deploy GitHub Pages
+        uses: actions/deploy-pages@v4
