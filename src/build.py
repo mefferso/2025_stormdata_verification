@@ -68,7 +68,7 @@ def get_bytes(session, url, params, cached, refresh=False):
         return cached.read_bytes()
     for n in range(4):
         try:
-            r = session.get(url, params=params, timeout=120)
+            r = session.get(url, params=params, timeout=65)
             r.raise_for_status()
             if len(r.content) < 20:
                 raise ValueError("Suspiciously empty archive response")
@@ -86,14 +86,14 @@ def get_bytes(session, url, params, cached, refresh=False):
 def warning_rows(session, cache, refresh):
     """Read IEM zipped shapefile; source offers polygons and metadata."""
     seen = set()
-    for month in range(1, 13):
+    for month in (1, 4, 7, 10):
         start = datetime(2025, month, 1, tzinfo=UTC)
-        end = datetime(2026 if month == 12 else 2025, (month % 12) + 1, 1, tzinfo=UTC)
+        end = datetime(2026, 1, 1, tzinfo=UTC) if month == 10 else datetime(2025, month + 3, 1, tzinfo=UTC)
         params = {"accept": "shapefile", "sts": iso(start), "ets": iso(end),
                   "wfo": "LIX", "limitps": "1",
                   "phenomena": "TO,SV,FF", "significance": "W,W,W"}
         data = get_bytes(session, f"{BASE}/cgi-bin/request/gis/watchwarn.py",
-                         params, Path(cache) / f"warnings_{month:02}.zip", refresh)
+                         params, Path(cache) / f"warnings_quarter_{month:02}.zip", refresh)
         with zipfile.ZipFile(io.BytesIO(data)) as z:
             member = next((x for x in z.namelist() if x.lower().endswith(".shp")), None)
             if member is None:
@@ -187,12 +187,12 @@ def product_timestamp(product_id):
 
 def lsr_rows(session, cache, refresh):
     # Fetch occurrence-time windows across BOTH boundaries; GeoJSON capped at 10k.
-    # Keep calendar chunks small to prevent truncation on major outbreaks.
+    # Use <=31-day chunks: LIX storm-report volumes are far below IEM's 10,000-record cap.
     begin = datetime(2024, 12, 29, tzinfo=UTC)
     end = datetime(2026, 1, 4, tzinfo=UTC)
     day = begin
     while day < end:
-        nxt = min(day + timedelta(days=7), end)
+        nxt = min(day + timedelta(days=31), end)
         params = {"wfos": "LIX", "sts": iso(day)[:16] + "Z",
                   "ets": iso(nxt)[:16] + "Z"}
         key = f"lsr_{day:%Y%m%d}.json"

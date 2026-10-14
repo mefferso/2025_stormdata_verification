@@ -14,7 +14,7 @@ permissions:
   id-token: write
 concurrency:
   group: github-pages
-  cancel-in-progress: false
+  cancel-in-progress: true
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -34,9 +34,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .cache/iem
-          key: iem-lix-2025-v2-run-ID
+          key: iem-lix-2025-v3-${{ github.run_id }}
           restore-keys: |
-            iem-lix-2025-v2-
+            iem-lix-2025-v3-
       - name: Execute offline QC tests
         run: python -m pytest tests -q
       - name: Ingest public archives and build research results
