@@ -13,7 +13,7 @@ How long after an **original warning issuance** did its candidate supporting LSR
 - Original 2025 SVR and FFW warning episodes and polygons come from the IEM warning GIS archive. Warning IDs include original issuance time, because VTEC event tracking numbers can be reused.
 - Event details come from IEM LSR GeoJSON. Repeated source records for the same event, type, location, and county or parish are collapsed. Tornado reports are outside this study.
 - First publication time comes from the earliest exact matching `LSRLIX` row in IEM's archived raw text products, downloaded month by month. The archive ZIP entry index, product link, and SHA-256 of the product text are exported. The GeoJSON `product_id` may point to a later summary; it is shown as a proxy and never substituted for an unconfirmed first issuance.
-- Candidate association requires an LSR event inside a warning polygon during its valid period and a conservative event type and impact screen. Overlapping candidate warnings receive no primary attribution. Uncertain corrections, missing raw matches, and ambiguous local times remain visible but are excluded from reliable delay percentages.
+- **Primary association source: IEM Cow.** Monthly Cow API responses provide `stormreports` (reports Cow used to verify each warning) and `stormreports_all` (additional candidate/review reports). Cow LSRs are reconciled with event-time GeoJSON records by type/time/coordinates and Cow warnings with distinct original issuance episodes. Unmatched or ambiguous joins remain explicit in `metadata.cow_diagnostics`, not silently counted. Overlapping Cow-verifying warnings receive no primary attribution. Cow verification is automated and unofficial.
 - The denominator for the 8-hour percentages is **uniquely attributed candidate LSRs with a confirmed first text product and a nonnegative original-issuance-to-publication interval**. Distinct warnings are counted separately from reports.
 
 See [methodology](site/methodology.html) for detailed definitions, source links, and limitations.
@@ -40,6 +40,6 @@ A full-year overview with explicit denominators; non-overlapping delay bins and 
 
 ## Limits
 
-IEM is an archive, not a guarantee that every original NWS dissemination is present. The earliest product found there does not prove the true first release or when forecasters knew about the event. Initial warning polygons may miss later changes. Automated candidate screens need human review, especially qualitative wind damage and flash flood impact. A warning with no candidate LSR is not necessarily unverified.
+IEM is an archive, not a guarantee that every original NWS dissemination is present. The earliest product found there does not prove the true first release or when forecasters knew about the event. Cow and original polygon/time screens can disagree because Cow applies different verification rules and buffering. Cow verification is not official NWS verification, and the monthly Cow association join should be audited against unmatched/ambiguous LSR references. A warning with no candidate LSR is not necessarily unverified.
 
 Credit Iowa Environmental Mesonet / Iowa State University for IEM datasets and the issuing NWS office for products.
