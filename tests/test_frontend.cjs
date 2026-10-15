@@ -28,4 +28,7 @@ assert.equal(vm.runInContext('subset().length', context), data.warnings.filter(w
 element('typeFilter').value = '';
 element('searchFilter').value = data.warnings[0].id;
 assert.equal(vm.runInContext('subset().length', context), 1);
+context.window.Plotly = null;
+vm.runInContext('chart("statusChart", [{type:"bar",x:[1],y:[1]}]);', context);
+assert.match(element('statusChart').innerHTML, /Plotly could not be loaded/);
 console.log('Frontend data preparation and filters passed');
