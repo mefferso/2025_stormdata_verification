@@ -60,6 +60,12 @@ jobs:
           assert Path("site/data/summary.txt").is_file()
           print("Validated real IEM results", json.dumps(d["overview"], indent=2))
           PY
+      - name: Save reproducible 2025 analysis results
+        uses: actions/upload-artifact@v4
+        with:
+          name: lix-2025-research-results
+          path: site/data/
+          retention-days: 90
       - uses: actions/configure-pages@v5
         with:
           enablement: true
