@@ -1,6 +1,6 @@
 "use strict";
 const $=id=>document.getElementById(id);
-const colors={SVR:"#367cb5",TOR:"#c15d62",FFW:"#8666af",early:"#008b88",late:"#d69e41"};
+const colors={SVR:"#367cb5",FFW:"#8666af",early:"#008b88",late:"#d69e41"};
 const labels={documented_by_expiration:"By expiration",first_documented_after_expiration:"First after expiration",no_candidate_lsr:"No candidate found",needs_review:"Needs review"};
 const fmt=x=>x===null||x===undefined?"—":Number(x).toLocaleString("en-US");
 const esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -12,7 +12,7 @@ function metric(name,num,definition){return '<article class="metric"><div class=
 function metrics(){
  const o=d.overview;
  $("metrics").innerHTML=[
- metric("Warnings analyzed",fmt(o.warnings),"Distinct WFO LIX SVR, TOR and FFW warning events issued in 2025."),
+ metric("Warnings analyzed",fmt(o.warnings),"Distinct WFO LIX SVR and FFW warning events issued in 2025."),
  metric("Candidate documented",fmt(o.documented),"Warnings with a strictly screened candidate LSR and usable source-product timestamp."),
  metric("First documented late",fmt(o.late_first),"First linked candidate product time is after warning expiration."),
  metric("No candidate found",fmt(o.not_matched),"No compatible source LSR identified, not an official unverified count."),
@@ -35,10 +35,10 @@ function charts(){
  chart("delayChart",[{type:"bar",x:bins,y:bins.map((_,i)=>rs.filter(r=>r.delay_minutes>=edges[i]&&r.delay_minutes<edges[i+1]).length),marker:{color:"#3c8eac"}}],{yaxis:{title:"Unique candidate reports"},xaxis:{tickangle:-20}});
  const x=[0,.5,1,3,6,12,24,48,72];
  chart("cumulativeChart",[{type:"scatter",mode:"lines+markers",x,y:x.map(h=>rs.length?100*rs.filter(r=>r.delay_minutes<=h*60).length/rs.length:0),line:{color:colors.early,width:3,shape:"hv"},marker:{size:6}}],{xaxis:{title:"Hours after occurrence"},yaxis:{title:"% of candidate reports",range:[0,100]}});
- const wlookup=new Map(d.warnings.map(w=>[w.id,w.type])),rlookup=new Map(d.reports.map(r=>[r.id,r])),typeDelays={SVR:[],TOR:[],FFW:[]},seen=new Set();
+ const wlookup=new Map(d.warnings.map(w=>[w.id,w.type])),rlookup=new Map(d.reports.map(r=>[r.id,r])),typeDelays={SVR:[],FFW:[]},seen=new Set();
  for(const a of d.associations){if(a.eligibility!=="candidate")continue;const t=wlookup.get(a.warning_id),r=rlookup.get(a.report_id),key=a.report_id+"/"+t;if(seen.has(key))continue;seen.add(key);if(t&&r?.delay_minutes!=null)typeDelays[t].push(r.delay_minutes/60);}
  const median=arr=>{let q=[...arr].sort((a,b)=>a-b);return q.length?q[Math.floor(q.length/2)]:0};
- chart("typeChart",[{type:"bar",orientation:"h",y:["FFW","TOR","SVR"],x:["FFW","TOR","SVR"].map(t=>median(typeDelays[t])),marker:{color:[colors.FFW,colors.TOR,colors.SVR]},customdata:["FFW","TOR","SVR"].map(t=>typeDelays[t].length),hovertemplate:"%{y}: %{x:.1f} hours, %{customdata} candidate LSRs<extra></extra>"}],{xaxis:{title:"Median hours (lower median if even n)"},margin:{l:50,r:20,t:10,b:45}});
+ chart("typeChart",[{type:"bar",orientation:"h",y:["FFW","SVR"],x:["FFW","TOR","SVR"].map(t=>median(typeDelays[t])),marker:{color:[colors.FFW,colors.SVR]},customdata:["FFW","TOR","SVR"].map(t=>typeDelays[t].length),hovertemplate:"%{y}: %{x:.1f} hours, %{customdata} candidate LSRs<extra></extra>"}],{xaxis:{title:"Median hours (lower median if even n)"},margin:{l:50,r:20,t:10,b:45}});
  const times=[[0,5],[6,11],[12,17],[18,23]],groups=times.map(([lo,hi])=>d.warnings.filter(w=>w.hour_local>=lo&&w.hour_local<=hi));
  chart("hourChart",[{type:"bar",x:["Midnight–5","6AM–11","Noon–5","6PM–11"],y:groups.map(g=>{let n=g.filter(w=>w.first_lsr).length;return n?100*g.filter(w=>w.classification==="first_documented_after_expiration").length/n:0}),marker:{color:colors.late}}],{yaxis:{title:"% late among documented",range:[0,100]}});
 }
@@ -80,7 +80,7 @@ function select(id){
  $("warningDetail").innerHTML='<div class="detail-head"><div><span class="eyebrow">INDIVIDUAL WARNING CHRONOLOGY</span><h3>'+esc(w.id)+'</h3><p>'+esc(labels[w.classification])+' · '+esc(w.flags.join("; ")||"No recorded QC flags")+'</p></div><a class="export-link" target="_blank" rel="noopener" href="'+esc(w.source_url)+'">↗ IEM archive</a></div>'+
  '<div class="detail-grid"><div><small>Issued · Central</small><strong>'+esc(w.issued_local)+'</strong></div><div><small>Expires · Central</small><strong>'+esc(w.expired_local)+'</strong></div><div><small>First source time − expiry</small><strong>'+minutes(w.first_after_expiry_minutes)+'</strong></div><div><small>Candidate / review LSRs</small><strong>'+w.strict_reports+' / '+w.review_reports+'</strong></div></div>'+
  '<h3 style="margin-top:24px">Chronology</h3>'+tl+'<h3>Linked reports ('+aa.length+')</h3><div class="report-list">'+(cards||'<p class="micro">No compatible report in the archive.</p>')+'</div>';
- if(map&&polygonLayer){polygonLayer.eachLayer(layer=>{let active=layer.options.warningId===w.id;layer.setStyle({weight:active?3:1,fillOpacity:active?.17:.015,opacity:active?1:.25});if(active&&layer.getBounds().isValid())map.fitBounds(layer.getBounds().pad(.35),{maxZoom:10});});}
+ if(map&&polygonLayer){polygonLayer.eachLayer(layer=>{let active=layer.options.warningId===w.id;layer.setStyle({weight:active?3:1,fillOpacity:active?.20:.012,opacity:active?1:.18});if(active&&layer.getBounds().isValid())map.fitBounds(layer.getBounds().pad(.35),{maxZoom:10});});reportLayer.eachLayer(p=>{const active=p.options.reportWarningIds?.includes(w.id);p.setStyle({opacity:active?1:.12,fillOpacity:active?.98:.12,radius:active?6:4});});}
 }
 function exportCsv(){
  const keys=["id","type","issued","expired","classification","strict_reports","review_reports","first_lsr","first_after_expiry_minutes","flags"];
@@ -90,15 +90,50 @@ function exportCsv(){
 }
 function initMap(){
  if(!window.L){$("map").textContent="Map library unavailable (network required).";return;}
- map=L.map("map").setView([30.45,-90.15],8);
- const a=L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",{maxZoom:18,attribution:"© OpenStreetMap contributors · CARTO"}),b=L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:18,attribution:"© OpenStreetMap contributors"});
- let errors=0,failover=false;a.on("tileerror",()=>{if(++errors>=5&&!failover){failover=true;map.removeLayer(a);b.addTo(map);}});a.addTo(map);
- polygonLayer=L.layerGroup().addTo(map);reportLayer=L.layerGroup().addTo(map);
- for(const w of d.warnings){try{L.geoJSON({type:"Feature",geometry:w.geometry,properties:{}},{style:{color:colors[w.type],weight:1,opacity:.55,fillOpacity:.04},onEachFeature:(_,l)=>{l.options.warningId=w.id;l.bindPopup('<b>'+esc(w.id)+'</b><p>'+esc(w.issued_local)+'<br>'+esc(labels[w.classification])+'</p>');l.on("click",()=>select(w.id));}}).addTo(polygonLayer);}catch(e){console.warn("Invalid geometry",w.id,e);}}
- const linked=new Map(d.associations.map(a=>[a.report_id,a]));for(const r of d.reports){if(r.lat==null||r.lon==null)continue;const assoc=linked.get(r.id),w=d.warnings.find(x=>x.id===assoc?.warning_id);const late=w&&r.disseminated&&stamp(r.disseminated)>stamp(w.expired);const point=L.circleMarker([r.lat,r.lon],{radius:5,weight:1,color:"#fff",fillColor:late?colors.late:colors.early,fillOpacity:.9});point.bindPopup('<b>'+esc(r.type)+'</b><p>'+esc(r.city)+', '+esc(r.county)+'<br>Occurred: '+esc(time(r.occurred))+'<br>Product: '+esc(time(r.disseminated))+'</p><p>'+esc(r.remarks)+'</p>');point.addTo(reportLayer);}
+ map=L.map("map",{preferCanvas:true,zoomControl:true});
+ map.createPane("warnings");map.getPane("warnings").style.zIndex=410;
+ map.createPane("reports");map.getPane("reports").style.zIndex=430;
+ // Esri Light Gray Canvas does not require a CARTO API key; fall back to OSM on tile errors.
+ const esri=L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",{maxZoom:16,attribution:"Tiles © Esri"});
+ const names=L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}",{maxZoom:16,attribution:"Labels © Esri",pane:"overlayPane"});
+ const osm=L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap contributors"});
+ let failed=false;
+ function fallback(){if(failed)return;failed=true;map.removeLayer(esri);map.removeLayer(names);osm.addTo(map);}
+ esri.on("tileerror",fallback);names.on("tileerror",fallback);
+ esri.addTo(map);names.addTo(map);
+ polygonLayer=L.featureGroup().addTo(map);reportLayer=L.featureGroup().addTo(map);
+ const warningsById=new Map(d.warnings.map(w=>[w.id,w]));
+ const assocsByReport=new Map();
+ for(const a of d.associations){if(!assocsByReport.has(a.report_id))assocsByReport.set(a.report_id,[]);assocsByReport.get(a.report_id).push(a);}
+ for(const w of d.warnings){
+  try{
+   L.geoJSON({type:"Feature",geometry:w.geometry,properties:{}},{
+    pane:"warnings",
+    style:{color:colors[w.type],weight:1.3,opacity:.65,fillOpacity:.055},
+    onEachFeature:(_,layer)=>{layer.options.warningId=w.id;layer.bindPopup("<b>"+esc(w.id)+"</b><p>"+esc(w.issued_local)+"<br>"+esc(labels[w.classification])+"</p>");layer.on("click",()=>select(w.id));}
+   }).addTo(polygonLayer);
+  }catch(e){console.warn("Invalid warning geometry",w.id,e);}
+ }
+ for(const r of d.reports){
+  if(!Number.isFinite(+r.lat)||!Number.isFinite(+r.lon)||r.lat==null||r.lon==null)continue;
+  const associations=assocsByReport.get(r.id)||[];
+  const candidate=associations.find(a=>a.eligibility==="candidate"&&warningsById.has(a.warning_id));
+  const a=candidate||associations[0];
+  const w=warningsById.get(a?.warning_id);
+  const late=Boolean(w&&r.disseminated&&stamp(r.disseminated)>stamp(w.expired));
+  const point=L.circleMarker([+r.lat,+r.lon],{pane:"reports",radius:4.5,weight:1.1,color:"#fff",fillColor:late?colors.late:colors.early,fillOpacity:.93});
+  point.options.reportWarningIds=associations.map(item=>item.warning_id);
+  point.bindPopup("<b>"+esc(r.type)+"</b><p>"+esc(r.city)+", "+esc(r.county)+"<br>Occurred: "+esc(time(r.occurred))+"<br>Product: "+esc(time(r.disseminated))+"</p><p>"+esc(r.remarks)+"</p>"+(r.source_url?'<a href="'+esc(r.source_url)+'" target="_blank" rel="noopener">IEM source ↗</a>':""));
+  point.addTo(reportLayer);
+ }
+ const extent=L.latLngBounds([]);
+ if(polygonLayer.getLayers().length)extent.extend(polygonLayer.getBounds());
+ if(reportLayer.getLayers().length)extent.extend(reportLayer.getBounds());
+ const resetExtent=()=>{selected=null;polygonLayer.eachLayer(g=>{if(g.setStyle)g.setStyle({weight:1.3,opacity:.65,fillOpacity:.055});});reportLayer.eachLayer(p=>p.setStyle({opacity:1,fillOpacity:.93,radius:4.5}));if(extent.isValid())map.fitBounds(extent.pad(.06),{maxZoom:9,padding:[18,18]});else map.setView([30.45,-90.15],8);};
+ resetExtent();
  $("polygonToggle").addEventListener("change",e=>e.target.checked?polygonLayer.addTo(map):map.removeLayer(polygonLayer));
  $("reportToggle").addEventListener("change",e=>e.target.checked?reportLayer.addTo(map):map.removeLayer(reportLayer));
- $("resetMap").addEventListener("click",()=>{map.setView([30.45,-90.15],8);polygonLayer.eachLayer(l=>l.setStyle({weight:1,opacity:.55,fillOpacity:.04}));});
+ $("resetMap").addEventListener("click",resetExtent);
 }
 function bind(){
  for(const id of ["typeFilter","monthFilter","statusFilter","countyFilter","delayFilter"]){$(id).addEventListener("change",()=>{page=0;table();});}
