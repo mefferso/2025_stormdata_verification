@@ -26,7 +26,7 @@ from shapely.ops import unary_union
 UTC = timezone.utc
 CHICAGO = ZoneInfo("America/Chicago")
 BASE = "https://mesonet.agron.iastate.edu"
-KINDS = {"TO": "TOR", "SV": "SVR", "FF": "FFW"}
+KINDS = {"SV": "SVR", "FF": "FFW"}
 WINDOWS = (1, 3, 6, 12, 24, 48)
 USER_AGENT = "LIX-2025-Stormdata-Research/1.0 (GitHub: mefferso/2025_stormdata_verification)"
 
@@ -91,7 +91,7 @@ def warning_rows(session, cache, refresh):
         end = datetime(2026, 1, 1, tzinfo=UTC) if month == 10 else datetime(2025, month + 3, 1, tzinfo=UTC)
         params = {"accept": "shapefile", "sts": iso(start), "ets": iso(end),
                   "wfo": "LIX", "limitps": "1",
-                  "phenomena": "TO,SV,FF", "significance": "W,W,W"}
+                  "phenomena": "SV,FF", "significance": "W,W"}
         data = get_bytes(session, f"{BASE}/cgi-bin/request/gis/watchwarn.py",
                          params, Path(cache) / f"warnings_quarter_{month:02}.zip", refresh)
         with zipfile.ZipFile(io.BytesIO(data)) as z:
@@ -270,8 +270,6 @@ def eligibility(kind, report):
     """Strict candidate vs manual-review vs incompatible; never official verification."""
     typ = report["type"]
     mag = report["magnitude"]
-    if kind == "TOR":
-        return "candidate" if typ == "TORNADO" else "incompatible"
     if kind == "SVR":
         if typ == "HAIL":
             return "candidate" if mag is not None and mag >= 1.0 else "review" if mag is None else "incompatible"
@@ -393,7 +391,7 @@ def export(warnings, reports, associations, output):
     output_data = {
         "metadata": {
             "year": 2025, "office": "LIX", "generated_utc": iso(datetime.now(UTC)),
-            "method": "Conservative point-in-issuance-polygon and occurrence-in-validity screening",
+            "method": "Conservative SVR/FFW point-in-issuance-polygon and occurrence-in-validity screening",
             "warnings_source": f"{BASE}/request/gis/watchwarn.phtml",
             "reports_source": f"{BASE}/geojson/lsr.geojson",
             "publication_caveat": "IEM GeoJSON product_id can favor a later summary product. The timestamp is a PRODUCT-LINKED PROXY, not confirmed first issuance or forecaster receipt.",
