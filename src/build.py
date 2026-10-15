@@ -470,16 +470,24 @@ def main():
     source_reports = parse_lsrs(lsr_rows(session, args.cache, args.refresh))
     print("Source LSR records:", len(source_reports), flush=True)
     from src.research import associate, consolidate_reports, export as export_research
-    from src.research import fetch_raw_products, summarize
+    from src.research import fetch_raw_products, fetch_cow, cow_associations, summarize
     from src.lsr_text import reconcile
     reports = consolidate_reports(source_reports)
     print("Relevant unique LSRs:", len(reports), flush=True)
     raw, coverage_end = fetch_raw_products(session, args.cache, args.refresh, get_bytes)
     print("Archived LSR text event rows:", len(raw), flush=True)
     reconcile(reports, raw)
-    associations = associate(warnings, reports)
+    cow_batches = fetch_cow(session, args.cache, args.refresh, get_bytes)
+    cow_links, cow_diagnostics = cow_associations(warnings, reports, cow_batches)
+    print("Cow linkage diagnostics:", json.dumps(cow_diagnostics), flush=True)
+    if not cow_links:
+        raise RuntimeError("Cow associations missing; refusing to publish unrelated source metrics")
+    associations = associate(warnings, reports, cow_links)
     data = summarize(warnings, reports, associations, len(raw), coverage_end)
     data["metadata"]["lsr_geojson_rows_downloaded"] = len(source_reports)
+    data["metadata"]["association_source"] = "IEM Cow stormreports verified links; stormreports_all retained as review"
+    data["metadata"]["cow_diagnostics"] = cow_diagnostics
+    data["metadata"]["cow_monthly_warning_records"] = sum(len(x["warnings"]) for x in cow_batches)
     export_research(data, args.output)
 
 
