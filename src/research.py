@@ -5,7 +5,7 @@ import json
 import math
 import re
 from collections import Counter, defaultdict
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from shapely.geometry import Point
@@ -120,14 +120,136 @@ def delay_bin(minutes):
     return BIN_LABELS[-1]
 
 
-def associate(warnings, reports):
-    """Keep all plausible matches; assign a primary warning only if unambiguous."""
+def fetch_cow(session, cache, refresh, get_bytes):
+    """Retrieve IEM Cow's explicit verified and all-in-polygon associations.
+
+    Cow's stormreport IDs are local to each request; retain the month as namespace.
+    Fetch monthly (with overlap at month end) to avoid large full-year responses.
+    """
+    results = []
+    for month in range(1, 13):
+        start = datetime(2025, month, 1, tzinfo=UTC)
+        end = datetime(2026, 1, 1, tzinfo=UTC) if month == 12 else datetime(2025, month + 1, 1, tzinfo=UTC)
+        params = [("wfo", "LIX"), ("begints", start.strftime("%Y-%m-%dT%H:%MZ")),
+                  ("endts", (end + timedelta(days=2)).strftime("%Y-%m-%dT%H:%MZ")),
+                  ("phenomena", "SV"), ("phenomena", "FF"),
+                  ("lsrtype", "SV"), ("lsrtype", "FF")]
+        # Query params are encoded into a deterministic URL so get_bytes can use its cache.
+        import urllib.parse
+        url = BASE + "/api/1/cow.json?" + urllib.parse.urlencode(params)
+        raw = get_bytes(session, url, None, Path(cache) / f"cow_{month:02}.json", refresh)
+        payload = json.loads(raw)
+        events = payload.get("events", {}).get("features", [])
+        lsrs = payload.get("stormreports", {}).get("features", [])
+        if not isinstance(events, list) or not isinstance(lsrs, list):
+            raise ValueError(f"Invalid Cow schema month {month}")
+        if not events:
+            print(f"Cow month {month}: no warning events", flush=True)
+        results.append({"month": month, "warnings": events, "reports": lsrs,
+                        "stats": payload.get("stats", {})})
+    if not any(item["warnings"] for item in results):
+        raise RuntimeError("No IEM Cow warning records; refusing to replace primary association logic")
+    return results
+
+
+def cow_id_set(value):
+    """Cow's stormreports/stormreports_all are comma-delimited numeric ID strings."""
+    if value is None:
+        return set()
+    if isinstance(value, (list, tuple)):
+        return {str(x).strip() for x in value if str(x).strip()}
+    return {x.strip() for x in str(value).split(",") if x.strip()}
+
+
+def cow_associations(warnings, reports, cow_batches):
+    """Return primary links and review links from Cow, preserving independent discrepancies."""
+    from collections import defaultdict
+    from datetime import timedelta
+    from src.lsr_text import RELEVANT_TYPES
+    warning_lookup = defaultdict(list)
+    for warning in warnings:
+        warning_lookup[(warning["type"], int(warning["vtec_id"][-4:]))].append(warning)
+    report_lookup = defaultdict(list)
+    for report in reports:
+        dt = parsedate(report["occurred"])
+        if dt and report.get("lat") is not None and report.get("lon") is not None:
+            report_lookup[(report["phenomenon"], dt.strftime("%Y%m%d%H%M"))].append(report)
+    matches = defaultdict(dict)
+    diagnostics = Counter()
+    for batch in cow_batches:
+        cows = {}
+        for feature in batch["reports"]:
+            props = feature.get("properties") or {}
+            cows[str(feature.get("id"))] = props
+        for event in batch["warnings"]:
+            props = event.get("properties") or {}
+            kind = {"SV": "SVR", "FF": "FFW"}.get(props.get("phenomena"))
+            if not kind or props.get("significance") != "W":
+                continue
+            issue = parsedate(props.get("issue"))
+            if not issue:
+                continue
+            lookup = warning_lookup.get((kind, int(props.get("eventid") or -1)), [])
+            candidates = [w for w in lookup if abs((parsedate(w["issued"]) - issue).total_seconds()) <= 120]
+            if len(candidates) != 1:
+                diagnostics["cow_warning_unmatched_or_ambiguous"] += 1
+                continue
+            warning = candidates[0]
+            verified = cow_id_set(props.get("stormreports"))
+            all_in_bounds = cow_id_set(props.get("stormreports_all")) | verified
+            for cow_id in all_in_bounds:
+                src = cows.get(cow_id)
+                if not src:
+                    diagnostics["cow_reference_not_found"] += 1
+                    continue
+                occurred = parsedate(src.get("valid"))
+                if not occurred:
+                    continue
+                typ = str(src.get("typetext") or "").upper().strip()
+                if RELEVANT_TYPES.get(typ) != kind:
+                    diagnostics["cow_unmapped_report_type"] += 1
+                    continue
+                nearby = report_lookup.get((kind, occurred.strftime("%Y%m%d%H%M")), [])
+                # Cow reports and GeoJSON reports share occurrence/location/type, not IDs.
+                try:
+                    lat, lon = float(src.get("lat0")), float(src.get("lon0"))
+                except (TypeError, ValueError):
+                    diagnostics["cow_report_no_coords"] += 1
+                    continue
+                exact = [r for r in nearby if r["type"] == typ and
+                         abs(r["lat"] - lat) <= .011 and abs(r["lon"] - lon) <= .011]
+                if len(exact) != 1:
+                    diagnostics["cow_report_unmatched_or_ambiguous"] += 1
+                    continue
+                report = exact[0]
+                status = "candidate" if cow_id in verified else "review"
+                old = matches[report["id"]].get(warning["id"])
+                if old is None or status == "candidate":
+                    matches[report["id"]][warning["id"]] = status
+                diagnostics["cow_linked_pairs"] += 1
+    for report in reports:
+        links = matches.get(report["id"], {})
+        report["cow_matched"] = bool(links)
+        report["cow_verified_warning_ids"] = sorted(k for k, status in links.items() if status == "candidate")
+        report["cow_all_warning_ids"] = sorted(links)
+    return matches, dict(diagnostics)
+
+
+def associate(warnings, reports, cow_links=None):
+    """Use Cow verified LSR relationships when supplied; retain review-only Cow links."""
     associations = []
     warning_by_id = {w["id"]: w for w in warnings}
     by_warning = defaultdict(list)
     for report in reports:
         plausible = []
-        if report["lat"] is not None and report["lon"] is not None:
+        if cow_links is not None:
+            for warning_id, status in cow_links.get(report["id"], {}).items():
+                warning = warning_by_id.get(warning_id)
+                if warning and warning["type"] == report["phenomenon"]:
+                    plausible.append({"warning_id": warning_id, "report_id": report["id"],
+                                      "eligibility": status, "occurred": report["occurred"],
+                                      "phenomenon": report["phenomenon"]})
+        elif report["lat"] is not None and report["lon"] is not None:
             point = Point(report["lon"], report["lat"])
             occurred = parsedate(report["occurred"])
             for warning in warnings:
