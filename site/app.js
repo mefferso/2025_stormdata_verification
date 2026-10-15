@@ -3,7 +3,7 @@ const $=id=>document.getElementById(id);
 const COLORS={SVR:"#29739c",FFW:"#8061aa",within8:"#087e80",beyond24:"#bd7d18",beyond48:"#d45c25",beyond96:"#b64255",verylate:"#70439a",uncertain:"#82919d"};
 const BINS=["0–1h",">1–3h",">3–8h",">8–12h",">12–24h",">24–48h",">48–72h",">72–96h",">96h"];
 const WARNING_LABELS={candidate_within_8:"First LSR within 8h",candidate_after_8:"First LSR after 8h",candidate_untimed:"Candidate, time uncertain",needs_review:"Needs review",no_candidate_lsr:"No candidate found"};
-const REPORT_LABELS={candidate:"Candidate support",overlap_review:"Overlapping warnings · review",needs_review:"Evidence needs review",unassociated:"No matching warning"};
+const REPORT_LABELS={candidate:"Cow-verified warning link",overlap_review:"Overlapping warnings · review",needs_review:"Evidence needs review",unassociated:"No matching warning"};
 const TIMING_LABELS={archive_confirmed:"First IEM text product located",uncertain_correction:"Conflicting correction · uncertain",uncertain_dst:"Ambiguous local time · review",proxy_only:"GeoJSON product proxy only",missing:"No publication time"};
 const esc=value=>String(value??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
 const num=value=>value==null?"—":Number(value).toLocaleString("en-US");
@@ -25,12 +25,12 @@ function showMetrics(){
  $("metrics").innerHTML=[
   metric("SVR-related source LSRs",num(o.source_svr_lsrs),"Unique 2025 LIX event records","Hail, thunderstorm wind gust, or thunderstorm wind damage LSRs after source deduplication; association is not required."),
   metric("FFW-related source LSRs",num(o.source_ffw_lsrs),"Unique 2025 flash-flood LSRs","Flash-flood type LSRs after source deduplication; association is not required."),
-  metric("Candidate associated LSRs",num(o.associated_lsrs),`${num(o.overlap_review_lsrs)} more overlap case(s) need review`,"Unique LSRs with one unambiguous candidate warning. Overlapping candidate warnings have no primary attribution and are reported separately."),
+  metric("Cow-associated LSRs",num(o.associated_lsrs),`${num(o.overlap_review_lsrs)} overlap case(s) need review`,"Unique LSRs with one unambiguous IEM Cow-verified SVR or FFW. Cow verification is automated/unofficial; overlap cases are separate."),
   metric("Issued within 8 hours",`${num(o.within_8)} · ${pct(o.within_8,den)}`,`of ${num(den)} reliably timed associated LSRs`,"First matching raw LSR product at or before eight hours after original warning issuance, divided by reliably timed candidate LSRs."),
   metric("Issued beyond 8 hours",`${num(o.beyond_8)} · ${pct(o.beyond_8,den)}`,`of ${num(den)} reliably timed associated LSRs`,"First matching raw LSR product more than eight hours after original warning issuance, divided by reliably timed candidate LSRs."),
   metric("Median reporting delay",o.median_delay_hours==null?"—":`${o.median_delay_hours.toFixed(2)}h`,`original warning → first IEM text product`,"Median issuance-to-first-product interval among uniquely attributed, archive-confirmed LSRs with nonnegative delays.")
  ].join("");
- $("timingCoverage").innerHTML=`<b>Timing coverage:</b> ${num(o.reliably_timed_lsrs)} of ${num(o.associated_lsrs)} candidate LSRs contribute to timing percentages. ${num(o.timing_unknown)} have uncertain or missing first-product times; ${num(o.pre_warning)} were issued before the warning. ${num(o.other_review_lsrs)} additional LSRs need evidence review. Archive-confirmed first-product coverage among candidate LSRs: ${esc(o.archive_confirmed_share_of_associated)}%.`;
+ $("timingCoverage").innerHTML=`<b>Timing coverage:</b> ${num(o.reliably_timed_lsrs)} of ${num(o.associated_lsrs)} Cow-associated LSRs contribute to timing percentages. ${num(o.timing_unknown)} have uncertain or missing first-product times; ${num(o.pre_warning)} were issued before the warning. ${num(o.other_review_lsrs)} additional LSRs need evidence review. Archive-confirmed first-product coverage among candidate LSRs: ${esc(o.archive_confirmed_share_of_associated)}%.`;
 }
 const plotLayout=(extra={})=>({font:{family:"system-ui, sans-serif",size:12,color:"#4e6474"},margin:{l:53,r:22,t:22,b:55},paper_bgcolor:"rgba(0,0,0,0)",plot_bgcolor:"rgba(0,0,0,0)",hoverlabel:{bgcolor:"#143044",font:{color:"#fff"}},...extra});
 const plotConfig={responsive:true,displaylogo:false,toImageButtonOptions:{format:"svg",filename:"lix-2025-reporting-delay"}};
@@ -70,7 +70,7 @@ function reportSubset(){
 function timingCell(report){if(report.first_issued)return esc(when(report.first_issued));if(report.proxy_issued)return `<span title="GeoJSON product link; not verified as first issuance">Uncertain · proxy ${esc(when(report.proxy_issued))}</span>`;return "Unknown";}
 function renderReports(){
  filteredReports=reportSubset();reportPage=Math.min(reportPage,Math.max(0,Math.ceil(filteredReports.length/25)-1));
- $("reportCount").textContent=`${num(filteredReports.length)} / ${num(data.reports.length)} unique LSRs · ${num(data.overview.associated_lsrs)} candidate associated in full study`;
+ $("reportCount").textContent=`${num(filteredReports.length)} / ${num(data.reports.length)} unique LSRs · ${num(data.overview.associated_lsrs)} Cow-associated in full study`;
  const rows=filteredReports.slice(reportPage*25,reportPage*25+25);
  $("reportRows").innerHTML=rows.map(r=>`<tr data-id="${esc(r.id)}"><td><span class="pill ${esc(r.phenomenon)}">${esc(r.phenomenon)}</span></td><td>${esc(r.type)}</td><td>${esc(r.county)}</td><td>${esc(when(r.occurred))}</td><td>${esc(r.primary_warning_id||r.possible_warning_ids.join("; ")||"—")}</td><td>${esc(when(r.warning_issued))}</td><td>${timingCell(r)}</td><td class="delay-value">${esc(hours(r.delay_minutes))}</td><td>${esc(r.delay_bin||"Unknown / review")}</td><td><span class="status">${esc(TIMING_LABELS[r.timing_status])}</span><small>${esc(REPORT_LABELS[r.association_status])}</small></td><td>${safeUrl(r.earliest_source_url||r.source_url)?`<a href="${esc(safeUrl(r.earliest_source_url||r.source_url))}" target="_blank" rel="noopener">IEM ↗</a>`:"—"}</td></tr>`).join("")||'<tr><td colspan="11" class="empty-row">No LSRs match these filters.</td></tr>';
  $("reportRows").querySelectorAll("tr[data-id]").forEach(row=>row.addEventListener("click",event=>{if(event.target.closest("a"))return;selectReport(row.dataset.id,true);}));
