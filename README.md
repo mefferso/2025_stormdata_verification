@@ -18,7 +18,7 @@ Candidate documentation requires an LSR point covered by an applicable warning p
 
 ## Build
 
-GitHub Actions on push or manual dispatch fetches source archives, runs offline and generated-data tests, bundles pinned Leaflet and Plotly assets, creates JSON / CSV / summary outputs, publishes the static dashboard to Pages, and runs a Chromium smoke test against the published site. Check [Actions](https://github.com/mefferso/2025_stormdata_verification/actions). Manual dispatch has a **refresh** option to disregard cached archive slices.
+GitHub Actions on push or manual dispatch fetches source archives, runs offline and generated-data tests, bundles pinned Leaflet and Plotly assets, creates JSON / CSV / summary outputs, publishes the static dashboard to Pages, and runs a Chromium smoke test against the published site. The browser test checks both OpenStreetMap imagery and the Esri fallback, chart rendering, explorer interactions, downloads, and the mobile map viewport. Check [Actions](https://github.com/mefferso/2025_stormdata_verification/actions). Manual dispatch has a **refresh** option to disregard cached archive slices.
 
 Locally, with Python 3.12:
 
