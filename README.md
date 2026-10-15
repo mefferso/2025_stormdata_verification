@@ -18,7 +18,7 @@ Candidate documentation requires an LSR point covered by an applicable warning p
 
 ## Build
 
-GitHub Actions on push or manual dispatch fetches source archives, runs offline tests, creates JSON / CSV / summary outputs, and publishes a static Leaflet + Plotly dashboard to Pages. Check [Actions](https://github.com/mefferso/2025_stormdata_verification/actions). Manual dispatch has a **refresh** option to disregard cached archive slices.
+GitHub Actions on push or manual dispatch fetches source archives, runs offline and generated-data tests, bundles pinned Leaflet and Plotly assets, creates JSON / CSV / summary outputs, publishes the static dashboard to Pages, and runs a Chromium smoke test against the published site. Check [Actions](https://github.com/mefferso/2025_stormdata_verification/actions). Manual dispatch has a **refresh** option to disregard cached archive slices.
 
 Locally, with Python 3.12:
 
@@ -30,7 +30,7 @@ Run a static file server in \`site/\` to browse. Files in \`site/data\` are crea
 
 ## User interface
 
-Full-year overview with denominators; source-product lag distribution and cumulative lag curve; warning-type and time-of-day views; sortable/searchable/filterable warning explorer; detailed chronology and source links; Leaflet map with Esri Light Gray Canvas and OpenStreetMap fallback; CSV data downloads, filtered CSV and Plotly SVG/PNG chart exports.
+Full-year overview with denominators; source-product lag distribution and cumulative lag curve; warning-type and time-of-day views; sortable/searchable/filterable warning explorer; detailed chronology and source links; Leaflet map with OpenStreetMap and Esri Light Gray Canvas fallback; CSV data downloads, filtered CSV and Plotly SVG/PNG chart exports.
 
 ## QC and known limits
 

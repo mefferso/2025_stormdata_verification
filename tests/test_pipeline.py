@@ -1,6 +1,7 @@
 """Offline tests covering temporal, spatial and evidence classification edge cases."""
 from shapely.geometry import box
 from src.build import eligibility, match, parse_lsrs, parse_warnings, product_timestamp, stamp
+from src.validate import validate_results
 
 def warning(ident="2025-LIX-SV-W-0001", kind="SVR", start="2025-05-01T01:00Z",
             stop="2025-05-01T02:00Z"):
@@ -77,3 +78,26 @@ def test_cross_year_event():
     ws,aa=run([warning(start="2025-12-31T23:45Z",stop="2026-01-01T00:30Z")],
               [report(event="2026-01-01T00:15Z",pub="2026-01-01T04:00Z")])
     assert len(aa)==1 and ws[0]["classification"]=="first_documented_after_expiration"
+
+def test_tornado_warning_excluded_even_if_passed_to_parser():
+    tor = warning(ident="2025-LIX-TO-W-0001", kind="TOR")
+    svr = warning()
+    ffw = warning(ident="2025-LIX-FF-W-0002", kind="FFW")
+    parsed = parse_warnings([tor, svr, ffw])
+    assert {w["type"] for w in parsed} == {"SVR", "FFW"}
+    assert len(parsed) == 2
+
+def test_validator_rejects_non_scope_warning():
+    from copy import deepcopy
+    from pathlib import Path
+    import json
+    fixture = Path(__file__).parents[1] / "site" / "data" / "results.json"
+    if not fixture.exists():
+        return  # CI builds archive after offline unit tests.
+    data = json.loads(fixture.read_text())
+    assert validate_results(data)["SVR"] > 0
+    bad = deepcopy(data)
+    bad["warnings"][0]["type"] = "TOR"
+    import pytest
+    with pytest.raises(AssertionError, match="Non SVR/FFW"):
+        validate_results(bad)

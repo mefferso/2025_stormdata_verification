@@ -30,6 +30,16 @@ jobs:
           cache: pip
       - name: Install processing dependencies
         run: pip install -r requirements.txt
+      - name: Bundle pinned frontend libraries
+        run: |
+          npm install --no-save --prefix /tmp/lix-vendor plotly.js-dist-min@2.35.2 leaflet@1.9.4
+          mkdir -p site/vendor/leaflet
+          cp /tmp/lix-vendor/node_modules/plotly.js-dist-min/plotly.min.js site/vendor/plotly.min.js
+          cp /tmp/lix-vendor/node_modules/leaflet/dist/leaflet.js site/vendor/leaflet/leaflet.js
+          cp /tmp/lix-vendor/node_modules/leaflet/dist/leaflet.css site/vendor/leaflet/leaflet.css
+          cp -R /tmp/lix-vendor/node_modules/leaflet/dist/images site/vendor/leaflet/images
+          test -s site/vendor/plotly.min.js
+          test -s site/vendor/leaflet/leaflet.js
       - name: Cache public IEM archive
         uses: actions/cache@v4
         with:
@@ -49,17 +59,10 @@ jobs:
           python -m src.build --cache .cache/iem --output site $REFRESH
       - name: Validate actual output
         run: |
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          d = json.loads(Path("site/data/results.json").read_text())
-          assert d["metadata"]["year"] == 2025
-          assert d["overview"]["warnings"] > 0
-          assert d["metadata"]["lsr_records_downloaded"] > 0
-          assert d["overview"]["warnings"] == len(d["warnings"])
-          assert Path("site/data/summary.txt").is_file()
-          print("Validated real IEM results", json.dumps(d["overview"], indent=2))
-          PY
+          python -m src.validate site/data
+          python -m pytest tests/test_pipeline.py -q
+          node --check site/app.js
+          node tests/test_frontend.cjs
       - name: Save reproducible 2025 analysis results
         uses: actions/upload-artifact@v4
         with:
@@ -74,3 +77,9 @@ jobs:
           path: ./site
       - name: Deploy GitHub Pages
         uses: actions/deploy-pages@v4
+      - name: Install headless browser
+        run: |
+          python -m pip install 'playwright>=1.55,<2'
+          python -m playwright install --with-deps chromium
+      - name: Verify published dashboard in Chromium
+        run: python tests/browser_smoke.py https://mefferso.github.io/2025_stormdata_verification/

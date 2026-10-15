@@ -4,11 +4,11 @@
 <title>LIX Storm Report & Warning Analysis</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoECFj1XU0=" crossorigin="">
-<link rel="stylesheet" href="style.css">
-<script defer src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
-<script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-<script defer src="app.js"></script></head>
+<link rel="stylesheet" href="vendor/leaflet/leaflet.css?v=20261015-1">
+<link rel="stylesheet" href="style.css?v=20261015-1">
+<script defer src="vendor/plotly.min.js?v=20261015-1"></script>
+<script defer src="vendor/leaflet/leaflet.js?v=20261015-1"></script>
+<script defer src="app.js?v=20261015-1"></script></head>
 <body><div class="shell">
 <aside class="sidebar"><div class="brand"><div class="brand-mark">L<span>IX</span></div><div><strong>STORM DATA</strong><small>RESEARCH / 2025</small></div></div>
 <nav aria-label="Main navigation"><a href="#overview" class="active"><b>01</b> Overview</a><a href="#timing"><b>02</b> Reporting delays</a><a href="#explorer"><b>03</b> Warning explorer</a><a href="#geography"><b>04</b> Geographic view</a><a href="methodology.html"><b>05</b> Methodology & QC ↗</a></nav>
@@ -43,6 +43,6 @@
 </div><div class="table-panel"><div class="tabletop"><span id="tableCount">Loading warnings…</span><button class="quiet-button" id="filteredExport">↓ Export filtered CSV</button></div><div class="table-scroll"><table><thead><tr><th>Warning ID</th><th>Type</th><th>Issued (Central)</th><th>Expires (Central)</th><th>Strict LSRs</th><th>First proxy vs expiry</th><th>Classification</th><th>QC</th></tr></thead><tbody id="warningRows"></tbody></table></div><div class="pagination"><button id="prevPage">← Previous</button><span id="pageLabel">—</span><button id="nextPage">Next →</button></div></div>
 <article class="panel detail-panel" id="warningDetail"><div class="empty-state">Select a warning in the explorer to inspect its chronology and matched reports.</div></article></section>
 <section class="section" id="geography"><div class="section-heading"><div><span class="eyebrow">04 / SPATIAL CONTEXT</span><h2>Where did the reports arrive?</h2><p>Severe thunderstorm and flash flood warning polygons with matched report locations. Select a warning above to highlight its reports.</p></div><div class="maptools"><label><input type="checkbox" id="polygonToggle" checked> Polygons</label><label><input type="checkbox" id="reportToggle" checked> LSR points</label><button class="quiet-button" id="resetMap">Reset extent</button></div></div>
-<div class="map-panel"><div id="map" role="img" aria-label="Interactive warning polygons and local storm report map"></div><div class="maplegend"><div><span class="swatch svr"></span> SVR</div><div><span class="swatch ffw"></span> FFW</div><div><span class="swatch late"></span> LSR after expiry</div><div><span class="swatch ontime"></span> LSR by expiry</div></div></div></section>
+<div class="map-panel"><div id="mapStatus" role="status"></div><div id="map" role="img" aria-label="Interactive warning polygons and local storm report map"></div><div class="maplegend"><div><span class="swatch svr"></span> SVR</div><div><span class="swatch ffw"></span> FFW</div><div><span class="swatch late"></span> LSR after expiry</div><div><span class="swatch ontime"></span> LSR by expiry</div></div></div></section>
 <footer>2025 LIX warning + local storm report archive analysis · Public IEM sources · Not an official NWS verification product. <a href="methodology.html">Methods, data provenance & caveats ↗</a></footer>
 </main></div></body></html>

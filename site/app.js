@@ -22,25 +22,47 @@ function metrics(){
 }
 const layout=(x={})=>({font:{family:"DM Sans",size:11,color:"#607484"},margin:{l:48,r:12,t:12,b:45},paper_bgcolor:"rgba(0,0,0,0)",plot_bgcolor:"rgba(0,0,0,0)",showlegend:false,...x});
 const cfg={responsive:true,displaylogo:false,toImageButtonOptions:{format:"svg",filename:"lix-2025-analysis",scale:2}};
-function chart(id,traces,settings={}){if(window.Plotly)Plotly.newPlot(id,traces,layout(settings),cfg);else $(id).textContent="Interactive charts need the Plotly library."}
+function notice(id,message){$(id).innerHTML='<div class="component-notice" role="status">'+esc(message)+'</div>';}
+function chart(id,traces,settings={}){
+ if(!window.Plotly){notice(id,"Chart unavailable: Plotly could not be loaded.");return;}
+ if(!traces.length||traces.every(t=>Array.isArray(t.y)&&!t.y.length)){notice(id,"No chart data is available for this measure.");return;}
+ try{Promise.resolve(Plotly.newPlot(id,traces,layout(settings),cfg)).catch(e=>{console.error("Chart rendering failed: "+id,e);notice(id,"Chart could not be rendered.");});}
+ catch(e){console.error("Chart rendering failed: "+id,e);notice(id,"Chart could not be rendered.");}
+}
+function chartSection(id,prepare){try{prepare();}catch(e){console.error("Chart data preparation failed: "+id,e);notice(id,"Chart data could not be prepared.");}}
 function charts(){
  const states=["documented_by_expiration","first_documented_after_expiration","needs_review","no_candidate_lsr"];
+ chartSection("statusChart",()=>{
  chart("statusChart",[{type:"pie",hole:.58,labels:states.map(s=>labels[s]),values:states.map(s=>d.warnings.filter(w=>w.classification===s).length),marker:{colors:[colors.early,colors.late,"#c57d99","#9baab5"]}}],{margin:{l:5,r:5,t:5,b:5},showlegend:true,legend:{orientation:"h",y:-.13,font:{size:10}}});
+ });
+ chartSection("windowChart",()=>{
  const win=[0,1,3,6,12,24,48],total=d.overview.warnings;
  const nums=win.map(h=>h===0?d.warnings.filter(w=>w.classification==="documented_by_expiration").length:d.overview.windows[h]);
  chart("windowChart",[{type:"bar",x:win.map(h=>h?"+"+h+"h":"Expiry"),y:nums.map(n=>total?100*n/total:0),customdata:nums,marker:{color:"#238f9d"},hovertemplate:"%{x}: %{y:.1f}% (%{customdata} warnings)<extra></extra>"}],{yaxis:{title:"% of all warnings",range:[0,100]}});
+ });
+ chartSection("delayChart",()=>{
  const idset=new Set(d.associations.filter(a=>a.eligibility==="candidate").map(a=>a.report_id));
  const rs=d.reports.filter(r=>idset.has(r.id)&&Number.isFinite(r.delay_minutes)&&r.delay_minutes>=0);
  const edges=[0,30,60,180,360,720,1440,2880,Infinity],bins=["0–30m","30–60m","1–3h","3–6h","6–12h","12–24h","24–48h",">48h"];
  chart("delayChart",[{type:"bar",x:bins,y:bins.map((_,i)=>rs.filter(r=>r.delay_minutes>=edges[i]&&r.delay_minutes<edges[i+1]).length),marker:{color:"#3c8eac"}}],{yaxis:{title:"Unique candidate reports"},xaxis:{tickangle:-20}});
+ });
+ chartSection("cumulativeChart",()=>{
+ const idset=new Set(d.associations.filter(a=>a.eligibility==="candidate").map(a=>a.report_id));
+ const rs=d.reports.filter(r=>idset.has(r.id)&&Number.isFinite(r.delay_minutes)&&r.delay_minutes>=0);
  const x=[0,.5,1,3,6,12,24,48,72];
  chart("cumulativeChart",[{type:"scatter",mode:"lines+markers",x,y:x.map(h=>rs.length?100*rs.filter(r=>r.delay_minutes<=h*60).length/rs.length:0),line:{color:colors.early,width:3,shape:"hv"},marker:{size:6}}],{xaxis:{title:"Hours after occurrence"},yaxis:{title:"% of candidate reports",range:[0,100]}});
+ });
+ chartSection("typeChart",()=>{
  const wlookup=new Map(d.warnings.map(w=>[w.id,w.type])),rlookup=new Map(d.reports.map(r=>[r.id,r])),typeDelays={SVR:[],FFW:[]},seen=new Set();
  for(const a of d.associations){if(a.eligibility!=="candidate")continue;const t=wlookup.get(a.warning_id),r=rlookup.get(a.report_id),key=a.report_id+"/"+t;if(seen.has(key))continue;seen.add(key);if(t&&r?.delay_minutes!=null)typeDelays[t].push(r.delay_minutes/60);}
  const median=arr=>{let q=[...arr].sort((a,b)=>a-b);return q.length?q[Math.floor(q.length/2)]:0};
- chart("typeChart",[{type:"bar",orientation:"h",y:["FFW","SVR"],x:["FFW","TOR","SVR"].map(t=>median(typeDelays[t])),marker:{color:[colors.FFW,colors.SVR]},customdata:["FFW","TOR","SVR"].map(t=>typeDelays[t].length),hovertemplate:"%{y}: %{x:.1f} hours, %{customdata} candidate LSRs<extra></extra>"}],{xaxis:{title:"Median hours (lower median if even n)"},margin:{l:50,r:20,t:10,b:45}});
+ const types=["FFW","SVR"];
+ chart("typeChart",[{type:"bar",orientation:"h",y:types,x:types.map(t=>median(typeDelays[t])),marker:{color:types.map(t=>colors[t])},customdata:types.map(t=>typeDelays[t].length),hovertemplate:"%{y}: %{x:.1f} hours, %{customdata} candidate LSRs<extra></extra>"}],{xaxis:{title:"Median hours (lower median if even n)"},margin:{l:50,r:20,t:10,b:45}});
+ });
+ chartSection("hourChart",()=>{
  const times=[[0,5],[6,11],[12,17],[18,23]],groups=times.map(([lo,hi])=>d.warnings.filter(w=>w.hour_local>=lo&&w.hour_local<=hi));
  chart("hourChart",[{type:"bar",x:["Midnight–5","6AM–11","Noon–5","6PM–11"],y:groups.map(g=>{let n=g.filter(w=>w.first_lsr).length;return n?100*g.filter(w=>w.classification==="first_documented_after_expiration").length/n:0}),marker:{color:colors.late}}],{yaxis:{title:"% late among documented",range:[0,100]}});
+ });
 }
 function options(){
  for(let m=1;m<=12;m++)$("monthFilter").add(new Option(new Date(2025,m-1).toLocaleString("en",{month:"long"}),m));
@@ -89,34 +111,33 @@ function exportCsv(){
  const uri=URL.createObjectURL(new Blob([contents],{type:"text/csv"}));const a=document.createElement("a");a.href=uri;a.download="lix-2025-filtered.csv";a.click();setTimeout(()=>URL.revokeObjectURL(uri),5000);
 }
 function initMap(){
- if(!window.L){$("map").textContent="Map library unavailable (network required).";return;}
- map=L.map("map",{preferCanvas:true,zoomControl:true});
+ if(!window.L){notice("map","Map unavailable: Leaflet could not be loaded.");return;}
+ map=L.map("map",{preferCanvas:false,zoomControl:true});
  map.createPane("warnings");map.getPane("warnings").style.zIndex=410;
  map.createPane("reports");map.getPane("reports").style.zIndex=430;
- // Esri Light Gray Canvas does not require a CARTO API key; fall back to OSM on tile errors.
+ const osm=L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap contributors"});
  const esri=L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",{maxZoom:16,attribution:"Tiles © Esri"});
- const names=L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}",{maxZoom:16,attribution:"Labels © Esri",pane:"overlayPane"});
- const osm=L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap contributors"});
- let failed=false;
- function fallback(){if(failed)return;failed=true;map.removeLayer(esri);map.removeLayer(names);osm.addTo(map);}
- esri.on("tileerror",fallback);names.on("tileerror",fallback);
- esri.addTo(map);names.addTo(map);
+ let errors=0,usingFallback=false;
+ osm.on("tileerror",()=>{if(++errors>=2&&!usingFallback){usingFallback=true;console.warn("OpenStreetMap tiles failed; switching to Esri Light Gray Canvas");map.removeLayer(osm);esri.addTo(map);}});
+ esri.on("tileerror",()=>{notice("mapStatus","Basemap tiles are unavailable. Warning polygons and LSR points remain usable.");console.error("Esri fallback basemap tile failed");});
+ osm.addTo(map);
  polygonLayer=L.featureGroup().addTo(map);reportLayer=L.featureGroup().addTo(map);
  const warningsById=new Map(d.warnings.map(w=>[w.id,w]));
  const assocsByReport=new Map();
  for(const a of d.associations){if(!assocsByReport.has(a.report_id))assocsByReport.set(a.report_id,[]);assocsByReport.get(a.report_id).push(a);}
  for(const w of d.warnings){
   try{
-   L.geoJSON({type:"Feature",geometry:w.geometry,properties:{}},{
+   if(!w.geometry||!["Polygon","MultiPolygon"].includes(w.geometry.type))throw Error("Missing polygon geometry");
+   const layer=L.geoJSON({type:"Feature",geometry:w.geometry,properties:{}},{
     pane:"warnings",
     style:{color:colors[w.type],weight:1.3,opacity:.65,fillOpacity:.055},
     onEachFeature:(_,layer)=>{layer.options.warningId=w.id;layer.bindPopup("<b>"+esc(w.id)+"</b><p>"+esc(w.issued_local)+"<br>"+esc(labels[w.classification])+"</p>");layer.on("click",()=>select(w.id));}
-   }).addTo(polygonLayer);
+   });layer.options.warningId=w.id;layer.addTo(polygonLayer);
   }catch(e){console.warn("Invalid warning geometry",w.id,e);}
  }
  for(const r of d.reports){
-  if(!Number.isFinite(+r.lat)||!Number.isFinite(+r.lon)||r.lat==null||r.lon==null)continue;
   const associations=assocsByReport.get(r.id)||[];
+  if(!associations.length||r.lat==null||r.lon==null||!Number.isFinite(+r.lat)||!Number.isFinite(+r.lon))continue;
   const candidate=associations.find(a=>a.eligibility==="candidate"&&warningsById.has(a.warning_id));
   const a=candidate||associations[0];
   const w=warningsById.get(a?.warning_id);
@@ -134,6 +155,9 @@ function initMap(){
  $("polygonToggle").addEventListener("change",e=>e.target.checked?polygonLayer.addTo(map):map.removeLayer(polygonLayer));
  $("reportToggle").addEventListener("change",e=>e.target.checked?reportLayer.addTo(map):map.removeLayer(reportLayer));
  $("resetMap").addEventListener("click",resetExtent);
+ window.dashboardDiagnostics={map,polygonLayer,reportLayer,resetExtent};
+ if(window.ResizeObserver)new ResizeObserver(()=>map.invalidateSize()).observe($("map"));
+ setTimeout(()=>map.invalidateSize(),0);
 }
 function bind(){
  for(const id of ["typeFilter","monthFilter","statusFilter","countyFilter","delayFilter"]){$(id).addEventListener("change",()=>{page=0;table();});}
@@ -142,12 +166,23 @@ function bind(){
  $("nextPage").addEventListener("click",()=>{++page;table();});
  $("filteredExport").addEventListener("click",exportCsv);
 }
+function safeInit(name,fn,onError){try{fn();}catch(err){console.error(name+" initialization failed",err);onError?.();}}
 async function start(){
  try{
- const res=await fetch("data/results.json",{cache:"no-cache"});if(!res.ok)throw Error("The data-build workflow has not published real 2025 archive results (HTTP "+res.status+").");
- d=await res.json();if(!d.warnings?.length||d.metadata.year!==2025)throw Error("Archive is empty or not for 2025");
+  const res=await fetch("data/results.json",{cache:"no-cache"});
+  if(!res.ok)throw Error("Data request failed (HTTP "+res.status+").");
+  try{d=await res.json();}catch(e){throw Error("Data response is not valid JSON: "+e.message);}
+  if(!Array.isArray(d.warnings)||!d.warnings.length||d.metadata?.year!==2025||!Array.isArray(d.reports)||!Array.isArray(d.associations)||d.warnings.some(w=>!["SVR","FFW"].includes(w.type)))throw Error("Published data has an invalid 2025 SVR/FFW structure.");
+ }catch(err){
+  console.error("Dashboard data loading failed",err);$("buildstatus").textContent="Archive unavailable";
+  $("metrics").innerHTML='<div class="alert" role="alert"><strong>Real data unavailable</strong><span>'+esc(err.message)+' <a href="https://github.com/mefferso/2025_stormdata_verification/actions">Check build logs ↗</a></span></div>';
+  for(const id of ["statusChart","windowChart","delayChart","cumulativeChart","typeChart","hourChart"])notice(id,"Chart unavailable because archive data could not be loaded.");
+  $("tableCount").textContent="Data could not be loaded.";notice("warningDetail","Warning details unavailable because archive data could not be loaded.");notice("map","Map unavailable because archive data could not be loaded.");return;
+ }
  $("buildstatus").textContent="2025 archive · generated "+time(d.metadata.generated_utc);
- metrics();charts();options();bind();table();initMap();
- }catch(err){console.error(err);$("buildstatus").textContent="Archive unavailable";$("metrics").innerHTML='<div class="alert" role="alert"><strong>Real data unavailable</strong><span>'+esc(err.message)+' This website never substitutes fake sample statistics. <a href="https://github.com/mefferso/2025_stormdata_verification/actions">Check build logs ↗</a></span></div>';$("tableCount").textContent="Data could not be loaded.";}
+ safeInit("Metrics",metrics,()=>notice("metrics","Overview metrics could not be rendered."));
+ safeInit("Charts",charts,()=>{for(const id of ["statusChart","windowChart","delayChart","cumulativeChart","typeChart","hourChart"])if(!$(id).hasChildNodes())notice(id,"Chart could not be rendered.");});
+ safeInit("Explorer",()=>{options();bind();table();},()=>{$("tableCount").textContent="Warning Explorer could not be rendered.";notice("warningDetail","Warning details unavailable.");});
+ safeInit("Map",initMap,()=>notice("map","Spatial map could not be rendered."));
 }
 document.addEventListener("DOMContentLoaded",start);

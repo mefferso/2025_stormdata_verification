@@ -141,6 +141,8 @@ def warning_rows(session, cache, refresh):
 def parse_warnings(rows):
     groups = defaultdict(list)
     for r in rows:
+        if r.get("type") not in ("SVR", "FFW"):
+            continue
         groups[r["id"]].append(r)
     result = []
     for ident, parts in sorted(groups.items()):
@@ -411,6 +413,8 @@ def export(warnings, reports, associations, output):
         raise RuntimeError("No IEM LSR records; refusing to publish an empty analysis")
     if not any(r["disseminated"] for r in reports):
         raise RuntimeError("No LSR publication proxy timestamps; cannot analyze delay")
+    from src.validate import validate_results
+    validate_results(output_data)
     (out / "data" / "results.json").write_text(
         json.dumps(output_data, separators=(",", ":"), default=str), encoding="utf-8")
     for filename, objects in (
