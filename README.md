@@ -1,8 +1,8 @@
 # LIX Storm Report & Warning Analysis
 
-**2025 WFO New Orleans/Baton Rouge (LIX)** retrospective analysis of tornado, severe thunderstorm and flash flood warnings and archived Local Storm Reports.
+**2025 WFO New Orleans/Baton Rouge (LIX)** retrospective analysis of severe thunderstorm and flash flood warnings and archived Local Storm Reports.
 
-**Live URL (once the Pages workflow succeeds):** https://mefferso.github.io/2025_stormdata_verification/
+**Live URL (published via GitHub Pages):** https://mefferso.github.io/2025_stormdata_verification/
 
 ## Purpose
 
@@ -10,11 +10,11 @@ How much of our severe weather picture appears in *source-linked LSR products* a
 
 ## Data
 
-- Warning storm-based polygons and VTEC metadata: IEM warning GIS shapefile service (LIX, TO.W/SV.W/FF.W, issued in 2025).
-- Local Storm Reports: IEM LSR GeoJSON service, 7-day occurrence-time chunks from 2024-12-29 through 2026-01-04.
+- Warning storm-based polygons and VTEC metadata: IEM warning GIS shapefile service (LIX, SV.W/FF.W, issued in 2025).
+- Local Storm Reports: IEM LSR GeoJSON service, up-to-31-day occurrence-time chunks from 2024-12-29 through 2026-01-04.
 - Report occurrence: IEM LSR \`valid\`; product-linked proxy time: 12-digit prefix of IEM GeoJSON \`product_id\`. **Critical:** the GeoJSON may prefer a *later summary product ID*, not the first dissemination. Product-linked time is not actual forecaster receipt time. See [methodology](site/methodology.html).
 
-Candidate documentation requires an LSR point covered by an applicable warning polygon and its **event occurrence** within valid time. Candidate classes: TOR → TORNADO; SVR → hail >=1.0" or thunderstorm gust >=58 mph; FFW → FLASH FLOOD with substantive remarks. Qualitative wind damage, sparse flash flood reports, overlapping warnings, missing product times and incomplete magnitudes remain subject to manual review. All classification labels are **research screens**.
+Candidate documentation requires an LSR point covered by an applicable warning polygon and its **event occurrence** within valid time. Candidate classes: SVR → hail >=1.0" or thunderstorm gust >=58 mph; FFW → FLASH FLOOD with substantive remarks. Qualitative wind damage, sparse flash flood reports, overlapping warnings, missing product times and incomplete magnitudes remain subject to manual review. All classification labels are **research screens**.
 
 ## Build
 
@@ -30,7 +30,7 @@ Run a static file server in \`site/\` to browse. Files in \`site/data\` are crea
 
 ## User interface
 
-Full-year overview with denominators; source-product lag distribution and cumulative lag curve; warning-type and time-of-day views; sortable/searchable/filterable warning explorer; detailed chronology and source links; polished Leaflet map with CARTO light tiles and OpenStreetMap fallback; CSV data downloads, filtered CSV and Plotly SVG/PNG chart exports.
+Full-year overview with denominators; source-product lag distribution and cumulative lag curve; warning-type and time-of-day views; sortable/searchable/filterable warning explorer; detailed chronology and source links; Leaflet map with Esri Light Gray Canvas and OpenStreetMap fallback; CSV data downloads, filtered CSV and Plotly SVG/PNG chart exports.
 
 ## QC and known limits
 
