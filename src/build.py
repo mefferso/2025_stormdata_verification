@@ -256,6 +256,7 @@ def lsr_rows(session, cache, refresh):
                    "source_url": f"{BASE}/p.php?pid={product}" if product else None,
                    "flags": flag}
 
+        day = nxt
 
 def parse_lsrs(rows):
     reports = {}
