@@ -1,7 +1,6 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
-
 const data = JSON.parse(fs.readFileSync('site/data/results.json', 'utf8'));
 const plots = new Map();
 const elements = new Map();
@@ -10,25 +9,27 @@ const element = id => {
   return elements.get(id);
 };
 const Plotly = {newPlot(id, traces) {plots.set(id, traces); return Promise.resolve();}};
-const context = {document: {getElementById: element, addEventListener(){}}, window: {Plotly}, Plotly, console, Set, Map, Date, Number, String, Math, Promise, Option: function(label,value){return {label,value};}};
+const context = {document: {getElementById: element, addEventListener(){}}, window: {Plotly}, Plotly, console, Set, Map, Date, Number, String, Math, Promise, Intl, Option: function(label,value){return {label,value};}};
 vm.createContext(context);
 vm.runInContext(fs.readFileSync('site/app.js', 'utf8'), context);
-vm.runInContext('d = inputData; charts();', Object.assign(context, {inputData: data}));
-for (const id of ['statusChart','windowChart','delayChart','cumulativeChart','typeChart','hourChart']) {
-  assert(plots.has(id), `${id} failed to initialize`);
-}
-assert.deepEqual([...plots.get('typeChart')[0].y], ['FFW','SVR']);
-assert.equal(plots.get('typeChart')[0].x.length, 2);
-assert(plots.get('typeChart')[0].x.every(Number.isFinite));
-assert.equal(plots.get('hourChart')[0].y.length, 4);
-element('typeFilter').value = 'SVR';
-assert.equal(vm.runInContext('subset().length', context), data.warnings.filter(w=>w.type==='SVR').length);
-element('typeFilter').value = 'FFW';
-assert.equal(vm.runInContext('subset().length', context), data.warnings.filter(w=>w.type==='FFW').length);
-element('typeFilter').value = '';
-element('searchFilter').value = data.warnings[0].id;
-assert.equal(vm.runInContext('subset().length', context), 1);
-context.window.Plotly = null;
-vm.runInContext('chart("statusChart", [{type:"bar",x:[1],y:[1]}]);', context);
-assert.match(element('statusChart').innerHTML, /Plotly could not be loaded/);
-console.log('Frontend data preparation and filters passed');
+vm.runInContext('data = inputData; drawCharts();', Object.assign(context, {inputData: data}));
+for (const id of ['distributionChart','eightHourChart','cumulativeChart','longDelayChart','warningChart']) assert(plots.has(id), `${id} failed to initialize`);
+const associated = data.reports.filter(r => r.association_status === 'candidate');
+const timed = associated.filter(r => r.delay_minutes !== null && r.delay_minutes >= 0);
+assert.equal(data.overview.reliably_timed_lsrs, timed.length);
+assert.equal(data.overview.within_8 + data.overview.beyond_8, timed.length);
+assert.equal(plots.get('distributionChart')[0].y.reduce((a,b) => a+b, 0), data.by_phenomenon.SVR.reliably_timed_lsrs);
+assert.equal(plots.get('distributionChart')[1].y.reduce((a,b) => a+b, 0), data.by_phenomenon.FFW.reliably_timed_lsrs);
+element('reportType').value = 'SVR';
+assert.equal(vm.runInContext('reportSubset().length', context), data.reports.filter(r => r.phenomenon === 'SVR').length);
+element('reportType').value = 'FFW';
+assert.equal(vm.runInContext('reportSubset().length', context), data.reports.filter(r => r.phenomenon === 'FFW').length);
+element('reportType').value = '';
+element('reportDelay').value = 'beyond24';
+assert.equal(vm.runInContext('reportSubset().length', context), data.overview.beyond_24);
+element('reportDelay').value = '';
+element('warningType').value = 'FFW';
+assert.equal(vm.runInContext('warningSubset().length', context), data.warnings.filter(w => w.type === 'FFW').length);
+context.L = {divIcon: x => ({options:x})};
+assert.match(vm.runInContext('markerIcon({phenomenon:"FFW",association_status:"candidate",timing_status:"archive_confirmed",delay_minutes:90}).options.html', context), /<path/);
+console.log('Frontend chart preparation, filters, and marker shape passed');

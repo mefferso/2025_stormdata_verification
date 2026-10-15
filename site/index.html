@@ -1,48 +1,69 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="description" content="Retrospective 2025 LIX warning and Local Storm Report documentation analysis">
-<title>LIX Storm Report & Warning Analysis</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="vendor/leaflet/leaflet.css?v=20261015-1">
-<link rel="stylesheet" href="style.css?v=20261015-1">
-<script defer src="vendor/plotly.min.js?v=20261015-1"></script>
-<script defer src="vendor/leaflet/leaflet.js?v=20261015-1"></script>
-<script defer src="app.js?v=20261015-1"></script></head>
-<body><div class="shell">
-<aside class="sidebar"><div class="brand"><div class="brand-mark">L<span>IX</span></div><div><strong>STORM DATA</strong><small>RESEARCH / 2025</small></div></div>
-<nav aria-label="Main navigation"><a href="#overview" class="active"><b>01</b> Overview</a><a href="#timing"><b>02</b> Reporting delays</a><a href="#explorer"><b>03</b> Warning explorer</a><a href="#geography"><b>04</b> Geographic view</a><a href="methodology.html"><b>05</b> Methodology & QC ↗</a></nav>
-<div class="side-bottom"><div class="tiny-label">SCOPE</div><p>NWS New Orleans / Baton Rouge<br><strong>SVR · FFW</strong><br>Calendar year 2025</p><span class="nonofficial">Research only · Not official NWS verification</span></div></aside>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="2025 LIX severe thunderstorm and flash flood LSR reporting delays after original warning issuance">
+<title>LIX Storm Report Timing | 2025 Research</title>
+<link rel="stylesheet" href="vendor/leaflet/leaflet.css">
+<link rel="stylesheet" href="vendor/markercluster/MarkerCluster.css">
+<link rel="stylesheet" href="vendor/markercluster/MarkerCluster.Default.css">
+<link rel="stylesheet" href="style.css?v=20261015-2">
+<script defer src="vendor/plotly.min.js"></script>
+<script defer src="vendor/leaflet/leaflet.js"></script>
+<script defer src="vendor/markercluster/leaflet.markercluster.js"></script>
+<script defer src="app.js?v=20261015-2"></script>
+</head>
+<body>
+<div class="shell">
+<aside class="sidebar">
+  <div class="brand"><span class="brand-mark">L<span>IX</span></span><div><strong>STORM DATA</strong><small>RESEARCH / 2025</small></div></div>
+  <nav aria-label="Main navigation">
+    <a href="#overview">01 &nbsp; Overview</a>
+    <a href="#timing">02 &nbsp; Reporting delays</a>
+    <a href="#reports">03 &nbsp; LSR Explorer</a>
+    <a href="#geography">04 &nbsp; Delay map</a>
+    <a href="#warnings">05 &nbsp; Warning Explorer</a>
+    <a href="methodology.html">Methods &amp; QC ↗</a>
+  </nav>
+  <div class="side-bottom"><span class="tiny-label">STUDY SCOPE</span><p>WFO New Orleans / Baton Rouge<br><b>SVR + FFW</b> warnings issued in 2025</p><span>Research candidates, not official NWS verification.</span></div>
+</aside>
 <main class="content">
-<header class="topbar"><div><span class="eyebrow">OPERATIONAL RESEARCH / WFO LIX</span><h1>LIX Storm Report <em>&</em> Warning Analysis</h1>
-<p class="subtitle">When Do Severe Thunderstorm and Flash Flood Reports Arrive?</p></div><div class="topmeta"><span class="dot"></span><span id="buildstatus">Loading archive data…</span><a href="methodology.html">Read methodology ↗</a></div></header>
-<div class="alert" id="caveat"><strong>Important distinction</strong><span>LSR product-linked timestamps are dissemination proxies, not proof of when a forecaster received a report. These matches are not official warning verification. <a href="methodology.html">Read the limitations ↗</a></span></div>
-<section class="section" id="overview"><div class="section-heading"><div><span class="eyebrow">01 / EXECUTIVE OVERVIEW</span><h2>The documentation gap</h2><p>Counts reflect conservative LSR point-in-polygon and event-time matching. Hover metric titles for exact definitions.</p></div><a class="export-link" href="data/summary.txt" download>↓ Executive summary</a></div>
-<div class="metrics" id="metrics">
-<div class="metric"><div class="metric-label">Warnings analyzed</div><strong>—</strong></div>
-<div class="metric"><div class="metric-label">Candidate documented</div><strong>—</strong></div>
-<div class="metric"><div class="metric-label">First documented late</div><strong>—</strong></div>
-<div class="metric"><div class="metric-label">No candidate found</div><strong>—</strong></div>
-<div class="metric"><div class="metric-label">Median publication lag</div><strong>—</strong></div>
-<div class="metric"><div class="metric-label">Late share of documented</div><strong>—</strong></div>
+<header class="topbar"><div><span class="eyebrow">NWS LIX · 2025 RETROSPECTIVE</span><h1>When did storm reports arrive?</h1><p class="subtitle">From original warning issuance to the first archived Local Storm Report product.</p></div><div class="topmeta"><span id="buildstatus">Loading archive…</span><a href="methodology.html">How this was calculated ↗</a></div></header>
+<div class="caveat"><strong>Research interpretation</strong><span>These are candidate supporting LSRs, not official warning verification. A later LSR product does not prove when forecasters learned of the event or whether follow-up occurred.</span></div>
+<section id="overview" class="section"><div class="section-heading"><div><span class="eyebrow">01 / AT A GLANCE</span><h2>The first 8 hours</h2><p>Each LSR is counted once. Timing percentages use only uniquely attributed reports with an archive-confirmed, nonnegative delay.</p></div><a class="export-link" href="data/summary.txt" download>↓ Executive summary</a></div>
+<div id="metrics" class="metrics" aria-live="polite"></div>
+<div id="timingCoverage" class="coverage-note" role="status"></div>
+</section>
+<section id="timing" class="section"><div class="section-heading"><div><span class="eyebrow">02 / ISSUANCE-TO-PUBLICATION</span><h2>How delays are distributed</h2><p>The clock starts at the original SVR or FFW issuance, not expiration or the reported weather occurrence.</p></div></div>
+<div class="chart-grid">
+  <article class="panel wide"><div class="panel-title"><div><h3>Reporting delay distribution</h3><p>Unique, reliably timed candidate LSRs in non-overlapping intervals. The dashed divider marks 8 hours.</p></div><span class="info" title="The denominator for each phenomenon is its count of candidate LSRs with archive-confirmed first issuance and a nonnegative delay.">ⓘ</span></div><div id="distributionChart" class="plot"></div><p id="distributionDenominator" class="denominator"></p></article>
+  <article class="panel"><div class="panel-title"><div><h3>Within or beyond 8 hours</h3><p>Compare early and later publication for SVR and FFW reports.</p></div><span class="info" title="Each percentage is the count within or beyond eight hours divided by reliably timed associated LSRs of that phenomenon.">ⓘ</span></div><div id="eightHourChart" class="plot short"></div><p id="eightHourDenominator" class="denominator"></p></article>
+  <article class="panel"><div class="panel-title"><div><h3>Published by each hour mark</h3><p>Cumulative share of candidate LSRs available by 1, 3, 8, 12, 24, 48, 72, and 96 hours.</p></div><span class="info" title="Cumulative count divided by all reliably timed candidate LSRs for each warning type.">ⓘ</span></div><div id="cumulativeChart" class="plot short"></div><p id="cumulativeDenominator" class="denominator"></p></article>
+  <article class="panel"><div class="panel-title"><div><h3>Reports issued days later</h3><p>Counts beyond each threshold. Select a bar to inspect those LSRs.</p></div><span class="info" title="Thresholds overlap: a report beyond 96 hours is also included in the beyond-24, beyond-48, and beyond-72 counts.">ⓘ</span></div><div id="longDelayChart" class="plot short"></div><p class="denominator">Threshold counts overlap; bars are not meant to sum.</p></article>
+  <article class="panel"><div class="panel-title"><div><h3>Distinct warnings</h3><p>Warning counts are separate from LSR counts. One warning can have several supporting LSRs.</p></div><span class="info" title="Each warning appears once, classified by its earliest reliably timed candidate LSR or by its review/no-candidate state.">ⓘ</span></div><div id="warningChart" class="plot short"></div><p id="warningDenominator" class="denominator"></p></article>
+</div></section>
+<section id="reports" class="section"><div class="section-heading"><div><span class="eyebrow">03 / PRIMARY RESEARCH TOOL</span><h2>LSR Explorer</h2><p>Inspect each source report, its candidate warning attribution, first archived product, and delay. Untimed and review records remain visible.</p></div><div class="actions"><a class="export-link" href="data/reports.csv" download>↓ All LSRs</a><a class="export-link" href="data/raw_provenance.csv" download>↓ Raw provenance</a><button id="reportExport" class="export-link" type="button">↓ Filtered LSRs</button></div></div>
+<div class="filters" id="reportFilters">
+  <label>Phenomenon<select id="reportType"><option value="">SVR + FFW</option><option value="SVR">SVR-related</option><option value="FFW">FFW-related</option></select></label>
+  <label>Event month<select id="reportMonth"><option value="">All months</option></select></label>
+  <label>County / parish<select id="reportCounty"><option value="">All areas</option></select></label>
+  <label>Publication delay<select id="reportDelay"><option value="">All delays</option><option value="within8">Within 8 hours</option><option value="beyond8">Beyond 8 hours</option><option value="beyond24">Beyond 24 hours</option><option value="beyond48">Beyond 48 hours</option><option value="beyond72">Beyond 72 hours</option><option value="beyond96">Beyond 96 hours</option><option value="uncertain">Unknown / uncertain</option><option value="prewarning">Issued before warning</option></select></label>
+  <label>Association<select id="reportStatus"><option value="">All statuses</option><option value="candidate">Candidate support</option><option value="overlap_review">Overlapping warnings</option><option value="needs_review">Needs evidence review</option><option value="unassociated">No matching warning</option></select></label>
+  <label>Sort<select id="reportSort"><option value="delay_desc">Longest delay first</option><option value="delay_asc">Shortest delay first</option><option value="occurred_desc">Latest event first</option><option value="occurred_asc">Earliest event first</option></select></label>
+  <label class="search-field">Search ID, event, county, remarks<input id="reportSearch" type="search" placeholder="Try a parish, warning ID, or source term"></label>
 </div>
-<div class="split"><article class="panel"><div class="panel-top"><div><span class="eyebrow">DOCUMENTATION STATUS</span><h3>When did candidate support appear?</h3></div></div><div id="statusChart" class="plot small-plot"></div></article>
-<article class="panel"><div class="panel-top"><div><span class="eyebrow">FOLLOW-UP WINDOWS</span><h3>Warning documentation over time</h3></div><span class="micro">Denominator: all analyzed warnings</span></div><div id="windowChart" class="plot small-plot"></div></article></div></section>
-<section class="section" id="timing"><div class="section-heading"><div><span class="eyebrow">02 / REPORT DISSEMINATION</span><h2>How long after the event?</h2><p>Only strict candidate associations with usable timestamps contribute to lag statistics. Negative or invalid timestamps are excluded and flagged.</p></div><span class="tag">Occurrence → product-linked time</span></div>
-<div class="split"><article class="panel"><div class="panel-top"><div><span class="eyebrow">DELAY DISTRIBUTION</span><h3>Elapsed time to dissemination proxy</h3></div></div><div id="delayChart" class="plot"></div></article>
-<article class="panel"><div class="panel-top"><div><span class="eyebrow">CUMULATIVE RELEASE</span><h3>Share available by elapsed time</h3></div></div><div id="cumulativeChart" class="plot"></div></article></div>
-<div class="split"><article class="panel"><div class="panel-top"><div><span class="eyebrow">BY PHENOMENON</span><h3>Median lag by warning type</h3></div></div><div id="typeChart" class="plot short-plot"></div></article>
-<article class="panel"><div class="panel-top"><div><span class="eyebrow">LOCAL TIME OF ISSUANCE</span><h3>Late first-documentation share</h3></div></div><div id="hourChart" class="plot short-plot"></div></article></div></section>
-<section class="section" id="explorer"><div class="section-heading"><div><span class="eyebrow">03 / EVENT-LEVEL EVIDENCE</span><h2>Warning explorer</h2><p>Filter warnings, inspect linked reports, and follow their event and source-publication timestamps.</p></div><div class="actions"><a class="export-link" href="data/warnings.csv" download>↓ All warnings</a><a class="export-link" href="data/reports.csv" download>↓ Associated LSRs</a><a class="export-link" href="data/associations.csv" download>↓ Associations</a></div></div>
-<div class="filters"><label>Warning type<select id="typeFilter"><option value="">All types</option><option>SVR</option><option>FFW</option></select></label>
-<label>Month<select id="monthFilter"><option value="">All months</option></select></label>
-<label>Documentation<select id="statusFilter"><option value="">All classifications</option><option value="documented_by_expiration">By expiration</option><option value="first_documented_after_expiration">First after expiration</option><option value="no_candidate_lsr">No candidate found</option><option value="needs_review">Needs manual review</option></select></label>
-<label>Matched report county/parish<select id="countyFilter"><option value="">All counties/parishes</option></select></label>
-<label>First-product delay<select id="delayFilter"><option value="">All delays</option><option value="0">By expiration</option><option value="1">Within +1h</option><option value="3">Within +3h</option><option value="6">Within +6h</option><option value="12">Within +12h</option><option value="24">Within +24h</option><option value="48">Within +48h</option><option value="later">Later than +48h</option></select></label>
-<label class="search-field">Search IDs, county, type, source…<input id="searchFilter" placeholder="e.g. 2025-LIX-SV or St. Tammany"></label>
-</div><div class="table-panel"><div class="tabletop"><span id="tableCount">Loading warnings…</span><button class="quiet-button" id="filteredExport">↓ Export filtered CSV</button></div><div class="table-scroll"><table><thead><tr><th>Warning ID</th><th>Type</th><th>Issued (Central)</th><th>Expires (Central)</th><th>Strict LSRs</th><th>First proxy vs expiry</th><th>Classification</th><th>QC</th></tr></thead><tbody id="warningRows"></tbody></table></div><div class="pagination"><button id="prevPage">← Previous</button><span id="pageLabel">—</span><button id="nextPage">Next →</button></div></div>
-<article class="panel detail-panel" id="warningDetail"><div class="empty-state">Select a warning in the explorer to inspect its chronology and matched reports.</div></article></section>
-<section class="section" id="geography"><div class="section-heading"><div><span class="eyebrow">04 / SPATIAL CONTEXT</span><h2>Where did the reports arrive?</h2><p>Severe thunderstorm and flash flood warning polygons with matched report locations. Select a warning above to highlight its reports.</p></div><div class="maptools"><label><input type="checkbox" id="polygonToggle" checked> Polygons</label><label><input type="checkbox" id="reportToggle" checked> LSR points</label><button class="quiet-button" id="resetMap">Reset extent</button></div></div>
-<div class="map-panel"><div id="mapStatus" role="status"></div><div id="map" role="img" aria-label="Interactive warning polygons and local storm report map"></div><div class="maplegend"><div><span class="swatch svr"></span> SVR</div><div><span class="swatch ffw"></span> FFW</div><div><span class="swatch late"></span> LSR after expiry</div><div><span class="swatch ontime"></span> LSR by expiry</div></div></div></section>
-<footer>2025 LIX warning + local storm report archive analysis · Public IEM sources · Not an official NWS verification product. <a href="methodology.html">Methods, data provenance & caveats ↗</a></footer>
-</main></div></body></html>
+<div class="table-panel"><div class="tabletop"><span id="reportCount">Loading LSRs…</span><button class="quiet-button" id="resetReportFilters" type="button">Reset filters</button></div><div class="table-scroll"><table><thead><tr><th>Phenomenon</th><th>LSR event</th><th>County / parish</th><th>Occurred · Central</th><th>Warning</th><th>Issued · Central</th><th>First LSR product · Central</th><th>Hours later</th><th>Delay interval</th><th>Timing / association</th><th>Source</th></tr></thead><tbody id="reportRows"></tbody></table></div><div class="pagination"><button id="reportPrev" type="button">← Previous</button><span id="reportPage">—</span><button id="reportNext" type="button">Next →</button></div></div>
+<article id="reportDetail" class="panel detail-panel"><div class="empty-state">Select an LSR to see its warning, archived products, and remarks.</div></article>
+</section>
+<section id="geography" class="section"><div class="section-heading"><div><span class="eyebrow">04 / GEOGRAPHIC REPORTING DELAY</span><h2>Where did reports arrive?</h2><p>Shape shows report phenomenon; color shows time after its original warning issuance. Gray means timing or attribution needs review.</p></div></div>
+<div class="map-tools"><label><input id="mapSVR" type="checkbox" checked> SVR circles</label><label><input id="mapFFW" type="checkbox" checked> FFW diamonds</label><label><input id="mapPolygons" type="checkbox"> Warning polygons</label><label>Delay <select id="mapDelay"><option value="">All delays</option><option value="within8">Within 8 hours</option><option value="beyond8">Beyond 8 hours</option><option value="beyond24">Beyond 24 hours</option><option value="beyond48">Beyond 48 hours</option><option value="beyond72">Beyond 72 hours</option><option value="beyond96">Beyond 96 hours</option><option value="uncertain">Unknown / review</option></select></label><button id="resetMapFilters" class="quiet-button" type="button">Reset filters</button><button id="resetMap" class="quiet-button" type="button">Reset extent</button></div>
+<div class="map-panel"><div id="mapStatus" role="status"></div><div id="map" aria-label="Interactive geographic reporting delay map"></div><div class="map-legend"><span><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="7" fill="#597589"/></svg> SVR LSR</span><span><svg viewBox="0 0 20 20"><path d="M10 2L18 10 10 18 2 10Z" fill="#597589"/></svg> FFW LSR</span><span class="key"><i style="background:#087e80"></i>≤8h</span><span class="key"><i style="background:#bd7d18"></i>&gt;8–24h</span><span class="key"><i style="background:#d45c25"></i>&gt;24–48h</span><span class="key"><i style="background:#b64255"></i>&gt;48–96h</span><span class="key"><i style="background:#70439a"></i>&gt;96h</span><span class="key"><i style="background:#82919d"></i>Unknown / review</span></div></div>
+</section>
+<section id="warnings" class="section"><div class="section-heading"><div><span class="eyebrow">05 / DISTINCT WARNING VIEW</span><h2>Warning Explorer</h2><p>Count original SVR and FFW warning episodes separately from their associated LSRs.</p></div><div class="actions"><a class="export-link" href="data/warnings.csv" download>↓ Warnings CSV</a><a class="export-link" href="data/associations.csv" download>↓ Associations CSV</a></div></div>
+<div class="filters warning-filters"><label>Warning type<select id="warningType"><option value="">SVR + FFW</option><option value="SVR">SVR</option><option value="FFW">FFW</option></select></label><label>Documentation<select id="warningStatus"><option value="">All statuses</option><option value="candidate_within_8">First LSR within 8 hours</option><option value="candidate_after_8">First LSR after 8 hours</option><option value="candidate_untimed">Candidate, timing uncertain</option><option value="needs_review">Needs review</option><option value="no_candidate_lsr">No candidate found</option></select></label><label class="search-field">Search warning ID<input id="warningSearch" type="search" placeholder="e.g. FF-W-0002"></label></div>
+<div class="table-panel"><div class="tabletop"><span id="warningCount">Loading warnings…</span><button id="resetWarningFilters" class="quiet-button" type="button">Reset filters</button></div><div class="table-scroll"><table><thead><tr><th>Warning episode</th><th>Type</th><th>Original issue · Central</th><th>Polygon end · Central</th><th>Candidate LSRs</th><th>Review LSRs</th><th>First reliable LSR delay</th><th>Research status</th></tr></thead><tbody id="warningRows"></tbody></table></div><div class="pagination"><button id="warningPrev" type="button">← Previous</button><span id="warningPage">—</span><button id="warningNext" type="button">Next →</button></div></div>
+<article id="warningDetail" class="panel detail-panel"><div class="empty-state">Select a warning to inspect its supporting LSRs and archive source.</div></article>
+</section>
+<footer>Public IEM archives · 2025 WFO LIX SVR + FFW · Candidate LSR documentation, not official warning verification. <a href="methodology.html">Definitions, provenance, and limitations ↗</a></footer>
+</main></div>
+</body></html>

@@ -120,6 +120,7 @@ def warning_rows(session, cache, refresh):
                     continue
                 issue = stamp(row.get("INIT_ISS") or row.get("ISSUED"))
                 endtime = stamp(row.get("POLY_END") or row.get("EXPIRED"))
+                initial_expiration = stamp(row.get("INIT_EXP") or row.get("EXPIRED"))
                 if not issue or not endtime or endtime < issue:
                     continue
                 event_year = int(row.get("VTEC_YR") or issue.year)
@@ -132,6 +133,7 @@ def warning_rows(session, cache, refresh):
                 seen.add(fingerprint)
                 yield {"id": ident, "type": KINDS[row["PHENOM"]],
                        "issued": issue, "expired": endtime, "geom": geom,
+                       "initial_expiration": initial_expiration,
                        "source_product": row.get("PROD_ID") or "",
                        "status": row.get("STATUS") or "",
                        "ugc": str(row.get("NWS_UGC") or ""),
@@ -143,9 +145,11 @@ def parse_warnings(rows):
     for r in rows:
         if r.get("type") not in ("SVR", "FFW"):
             continue
-        groups[r["id"]].append(r)
+        # IEM VTEC event tracking numbers can be reused in the same year.
+        # The initial NEW issuance anchors a distinct warning episode.
+        groups[(r["id"], iso(r["issued"]))].append(r)
     result = []
-    for ident, parts in sorted(groups.items()):
+    for (vtec_id, original_issued), parts in sorted(groups.items()):
         issued = min(x["issued"] for x in parts)
         expires = max(x["expired"] for x in parts)
         if expires <= issued:
@@ -156,10 +160,15 @@ def parse_warnings(rows):
             flags.append("multiple_polygon_records__review_validity")
         if any(p["expired"] != expires for p in parts):
             flags.append("mixed_polygon_expiration__review")
+        if any(p.get("initial_expiration") and p["expired"] < p["initial_expiration"] for p in parts):
+            flags.append("polygon_ended_before_initial_expiration")
         simplified = geom.simplify(0.002, preserve_topology=True)
+        ident = f"{vtec_id}-{issued:%Y%m%d%H%M}"
+        source_product = next((p["source_product"] for p in parts if p["source_product"]), "")
         result.append({
-            "id": ident, "type": parts[0]["type"],
+            "id": ident, "vtec_id": vtec_id, "type": parts[0]["type"],
             "issued": iso(issued), "expired": iso(expires),
+            "initial_expiration": iso(min((p["initial_expiration"] for p in parts if p.get("initial_expiration")), default=None)),
             "issued_local": local(issued), "expired_local": local(expires),
             "month": issued.astimezone(CHICAGO).month,
             "hour_local": issued.astimezone(CHICAGO).hour,
@@ -168,8 +177,8 @@ def parse_warnings(rows):
             "_geom": geom,
             "_segments": [{"start": p["issued"], "end": p["expired"], "geom": p["geom"]}
                           for p in parts],
-            "source_product": next((p["source_product"] for p in parts if p["source_product"]), ""),
-            "source_url": f"{BASE}/vtec/?year={issued.year}&wfo=KLIX&phenomena={ident.split('-')[2]}&significance=W&eventid={int(ident[-4:])}",
+            "source_product": source_product,
+            "source_url": f"{BASE}/p.php?pid={source_product}" if source_product else f"{BASE}/vtec/?year={issued.year}&wfo=KLIX&phenomena={vtec_id.split('-')[2]}&significance=W&eventid={int(vtec_id[-4:])}",
             "flags": flags,
         })
     return result
@@ -458,10 +467,20 @@ def main():
     warnings = parse_warnings(warning_rows(session, args.cache, args.refresh))
     print("Warning events:", len(warnings), flush=True)
     print("Fetching IEM LSR GeoJSON and product-linked time proxies...", flush=True)
-    reports = parse_lsrs(lsr_rows(session, args.cache, args.refresh))
-    print("LSR records:", len(reports), flush=True)
-    associations = match(warnings, reports)
-    export(warnings, reports, associations, args.output)
+    source_reports = parse_lsrs(lsr_rows(session, args.cache, args.refresh))
+    print("Source LSR records:", len(source_reports), flush=True)
+    from src.research import associate, consolidate_reports, export as export_research
+    from src.research import fetch_raw_products, summarize
+    from src.lsr_text import reconcile
+    reports = consolidate_reports(source_reports)
+    print("Relevant unique LSRs:", len(reports), flush=True)
+    raw, coverage_end = fetch_raw_products(session, args.cache, args.refresh, get_bytes)
+    print("Archived LSR text event rows:", len(raw), flush=True)
+    reconcile(reports, raw)
+    associations = associate(warnings, reports)
+    data = summarize(warnings, reports, associations, len(raw), coverage_end)
+    data["metadata"]["lsr_geojson_rows_downloaded"] = len(source_reports)
+    export_research(data, args.output)
 
 
 if __name__ == "__main__":

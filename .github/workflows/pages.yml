@@ -32,14 +32,18 @@ jobs:
         run: pip install -r requirements.txt
       - name: Bundle pinned frontend libraries
         run: |
-          npm install --no-save --prefix /tmp/lix-vendor plotly.js-dist-min@2.35.2 leaflet@1.9.4
-          mkdir -p site/vendor/leaflet
+          npm install --no-save --prefix /tmp/lix-vendor plotly.js-dist-min@2.35.2 leaflet@1.9.4 leaflet.markercluster@1.5.3
+          mkdir -p site/vendor/leaflet site/vendor/markercluster
           cp /tmp/lix-vendor/node_modules/plotly.js-dist-min/plotly.min.js site/vendor/plotly.min.js
           cp /tmp/lix-vendor/node_modules/leaflet/dist/leaflet.js site/vendor/leaflet/leaflet.js
           cp /tmp/lix-vendor/node_modules/leaflet/dist/leaflet.css site/vendor/leaflet/leaflet.css
           cp -R /tmp/lix-vendor/node_modules/leaflet/dist/images site/vendor/leaflet/images
+          cp /tmp/lix-vendor/node_modules/leaflet.markercluster/dist/leaflet.markercluster.js site/vendor/markercluster/leaflet.markercluster.js
+          cp /tmp/lix-vendor/node_modules/leaflet.markercluster/dist/MarkerCluster.css site/vendor/markercluster/MarkerCluster.css
+          cp /tmp/lix-vendor/node_modules/leaflet.markercluster/dist/MarkerCluster.Default.css site/vendor/markercluster/MarkerCluster.Default.css
           test -s site/vendor/plotly.min.js
           test -s site/vendor/leaflet/leaflet.js
+          test -s site/vendor/markercluster/leaflet.markercluster.js
       - name: Cache public IEM archive
         uses: actions/cache@v4
         with:
@@ -60,7 +64,7 @@ jobs:
       - name: Validate actual output
         run: |
           python -m src.validate site/data
-          python -m pytest tests/test_pipeline.py -q
+          python -m pytest tests -q
           node --check site/app.js
           node tests/test_frontend.cjs
       - name: Save reproducible 2025 analysis results
