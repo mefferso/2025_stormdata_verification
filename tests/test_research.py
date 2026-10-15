@@ -12,7 +12,7 @@ from shapely.geometry import box
 
 from src.build import parse_warnings, stamp
 from src.lsr_text import parse_archive, reconcile
-from src.research import associate, consolidate_reports, delay_bin, eligibility, summarize
+from src.research import associate, cow_associations, consolidate_reports, delay_bin, eligibility, summarize
 from src.validate import validate_results
 
 
@@ -165,3 +165,45 @@ def test_generated_output_integrity_when_available():
     bad['associations'][0]['report_id'] = 'missing'
     with pytest.raises(AssertionError):
         validate_results(bad)
+
+
+def test_cow_verified_wind_damage_is_primary_support_not_discarded():
+    """Cow verification, not the old magnitude-only screen, drives primary status."""
+    warn = parse_warnings([warning()])
+    records = consolidate_reports([report(kind="TSTM WND DMG", magnitude=None,
+                                          remarks="Numerous large trees down near town")])
+    reconcile(records, [raw_entry(kind="TSTM WND DMG")])
+    cows = [{"month": 5, "warnings": [
+        {"properties": {"phenomena": "SV", "significance": "W",
+                        "eventid": 1, "issue": "2025-05-01T01:00:00Z",
+                        "stormreports": "1", "stormreports_all": "1"}}
+    ], "reports": [
+        {"id": 1, "properties": {"typetext": "TSTM WND DMG",
+                                  "valid": "2025-05-01T01:30:00Z",
+                                  "lat0": 30.5, "lon0": -90.5}}
+    ], "stats": {}}]
+    links, diagnostics = cow_associations(warn, records, cows)
+    assert diagnostics["cow_linked_pairs"] == 1
+    assert next(iter(links.values())) == {warn[0]["id"]: "candidate"}
+    pairs = associate(warn, records, links)
+    assert len(pairs) == 1
+    assert records[0]["association_status"] == "candidate"
+    assert records[0]["primary_warning_id"] == warn[0]["id"]
+    assert records[0]["delay_minutes"] == 510
+
+
+def test_cow_monthly_duplicate_links_are_not_counted_twice():
+    warn = parse_warnings([warning()])
+    records = consolidate_reports([report()])
+    base = {"month": 5, "warnings": [
+        {"properties": {"phenomena": "SV", "significance": "W",
+                        "eventid": 1, "issue": "2025-05-01T01:00:00Z",
+                        "stormreports": "9", "stormreports_all": "9"}}
+    ], "reports": [
+        {"id": 9, "properties": {"typetext": "HAIL",
+                                  "valid": "2025-05-01T01:30:00Z",
+                                  "lat0": 30.5, "lon0": -90.5}}
+    ], "stats": {}}
+    links, diag = cow_associations(warn, records, [base, base])
+    assert len(links) == 1
+    assert len(next(iter(links.values()))) == 1
