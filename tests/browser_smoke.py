@@ -54,9 +54,19 @@ def check(page):
     tile = page.locator("#map img.leaflet-tile-loaded").first
     expect(tile).to_be_visible(timeout=30000)
     assert tile.evaluate("img => img.naturalWidth > 0")
+    page.evaluate("""() => {
+        const layer = Object.values(dashboardDiagnostics.map._layers).find(item =>
+            item instanceof L.TileLayer && item._url.includes('tile.openstreetmap.org'));
+        if (!layer) throw new Error('Primary basemap layer missing');
+        layer.fire('tileerror');
+        layer.fire('tileerror');
+    }""")
+    fallback_tile = page.locator("#map img.leaflet-tile-loaded[src*='arcgisonline.com']").first
+    expect(fallback_tile).to_be_visible(timeout=30000)
+    assert fallback_tile.evaluate("img => img.naturalWidth > 0"), "Fallback tile is not usable imagery"
     assert not errors, errors
     assert not critical, critical
-    print("Published browser smoke passed:", map_counts, "loaded tile", tile.get_attribute("src"))
+    print("Published browser smoke passed:", map_counts, "loaded primary and fallback tiles")
 
 
 with sync_playwright() as playwright:
