@@ -61,6 +61,20 @@ def test_flash_flood_details():
     assert eligibility("FFW",report(typ="FLASH FLOOD",remark="Flooding"))=="review"
     assert eligibility("FFW",report(typ="FLASH FLOOD",remark="Several vehicles stranded in rapid flash flooding"))=="candidate"
 
+def test_ffw_only_association_and_tornado_lsr_exclusion():
+    ffw = warning(ident="2025-LIX-FF-W-0001", kind="FFW")
+    flood = report(typ="FLASH FLOOD", remark="Several vehicles stranded in rapid flash flooding")
+    tornado = report(id="r2", typ="TORNADO", remark="Tornado reported in the same warning area")
+    ws, aa = run([ffw], [flood, tornado])
+    assert len(ws) == 1 and ws[0]["type"] == "FFW"
+    assert [a["report_id"] for a in aa] == [flood["id"]]
+    assert ws[0]["classification"] == "first_documented_after_expiration"
+
+def test_svr_only_association():
+    ws, aa = run([warning()], [report(), report(id="r2", typ="TORNADO")])
+    assert len(aa) == 1 and aa[0]["report_id"] == "r1"
+    assert ws[0]["strict_reports"] == 1
+
 def test_missing_product_timestamp_is_not_on_time():
     ws,aa=run([warning()],[report(pub=None)])
     assert len(aa)==1 and ws[0]["classification"]=="needs_review"
