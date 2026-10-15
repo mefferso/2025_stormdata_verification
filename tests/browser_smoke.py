@@ -21,8 +21,8 @@ def check(page):
     expect(page.locator("#tableCount")).to_contain_text(f"{total} / {total}", timeout=90000)
     assert "TOR" not in page.locator("#warningRows").inner_text()
     for chart in ("statusChart", "windowChart", "delayChart", "cumulativeChart", "typeChart", "hourChart"):
-        expect(page.locator(f"#{chart} .js-plotly-plot")).to_be_visible(timeout=45000)
-    assert page.locator("#typeChart .js-plotly-plot").count() == 1
+        expect(page.locator(f"#{chart}.js-plotly-plot")).to_be_visible(timeout=45000)
+    assert page.locator("#typeChart.js-plotly-plot").count() == 1
     page.locator("#typeFilter").select_option("SVR")
     expect(page.locator("#tableCount")).to_contain_text(f"{counts['SVR']} / {total}")
     page.locator("#typeFilter").select_option("FFW")
@@ -42,7 +42,7 @@ def check(page):
     page.locator("#reportToggle").check()
     map_counts = page.evaluate("({polygons:dashboardDiagnostics.polygonLayer.getLayers().length, reports:dashboardDiagnostics.reportLayer.getLayers().length})")
     assert map_counts["polygons"] == total and map_counts["reports"] > 0, map_counts
-    assert page.locator("#map .leaflet-overlay-pane path").count() > 0
+    assert page.locator("#map .leaflet-warnings-pane path").count() > 0
     page.locator("#resetMap").click()
     assert page.evaluate("dashboardDiagnostics.map.getBounds().isValid()")
     with page.expect_download() as download_info:
