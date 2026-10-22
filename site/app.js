@@ -26,11 +26,10 @@ function showMetrics(){
   metric("SVR-related source LSRs",num(o.source_svr_lsrs),"Unique 2025 LIX event records","Hail, thunderstorm wind gust, or thunderstorm wind damage LSRs after source deduplication; association is not required."),
   metric("FFW-related source LSRs",num(o.source_ffw_lsrs),"Unique 2025 flash-flood LSRs","Flash-flood type LSRs after source deduplication; association is not required."),
   metric("Cow-associated LSRs",num(o.associated_lsrs),`${num(o.overlap_review_lsrs)} overlap case(s) need review`,"Unique LSRs with one unambiguous IEM Cow-verified SVR or FFW. Cow verification is automated/unofficial; overlap cases are separate."),
-  metric("Issued within 8 hours",`${num(o.within_8)} · ${pct(o.within_8,den)}`,`of ${num(den)} reliably timed associated LSRs`,"First matching raw LSR product at or before eight hours after original warning issuance, divided by reliably timed candidate LSRs."),
-  metric("Issued beyond 8 hours",`${num(o.beyond_8)} · ${pct(o.beyond_8,den)}`,`of ${num(den)} reliably timed associated LSRs`,"First matching raw LSR product more than eight hours after original warning issuance, divided by reliably timed candidate LSRs."),
+  metric("Issued within 8 hours",pct(o.within_8,den),"","First matching raw LSR product at or before eight hours after original warning issuance, divided by reliably timed candidate LSRs."),
+  metric("Issued beyond 8 hours",pct(o.beyond_8,den),"","First matching raw LSR product more than eight hours after original warning issuance, divided by reliably timed candidate LSRs."),
   metric("Median reporting delay",o.median_delay_hours==null?"—":`${o.median_delay_hours.toFixed(2)}h`,`original warning → first IEM text product`,"Median issuance-to-first-product interval among uniquely attributed, archive-confirmed LSRs with nonnegative delays.")
  ].join("");
- $("timingCoverage").innerHTML=`<b>Timing coverage:</b> ${num(o.reliably_timed_lsrs)} of ${num(o.associated_lsrs)} Cow-associated LSRs contribute to timing percentages. ${num(o.timing_unknown)} have uncertain or missing first-product times; ${num(o.pre_warning)} were issued before the warning. ${num(o.other_review_lsrs)} additional LSRs need evidence review. Archive-confirmed first-product coverage among candidate LSRs: ${esc(o.archive_confirmed_share_of_associated)}%.`;
 }
 const plotLayout=(extra={})=>({font:{family:"system-ui, sans-serif",size:12,color:"#4e6474"},margin:{l:53,r:22,t:22,b:55},paper_bgcolor:"rgba(0,0,0,0)",plot_bgcolor:"rgba(0,0,0,0)",hoverlabel:{bgcolor:"#143044",font:{color:"#fff"}},...extra});
 const plotConfig={responsive:true,displaylogo:false,toImageButtonOptions:{format:"svg",filename:"lix-2025-reporting-delay"}};
